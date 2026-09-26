@@ -51,8 +51,16 @@ pub mod ports {
 /// Holds settings for daemon behavior, P2P networking, and KYN Provider connections.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KineticConfig {
-    /// Daemon-level settings: ports, storage path, and network mode.
+    /// Generic settings shared by all peers.
+    pub peer: PeerConfig,
+    /// Settings specific to the local user daemon.
     pub daemon: DaemonConfig,
+    /// Settings specific to headless cloud nodes.
+    #[serde(default)]
+    pub node: NodeConfig,
+    /// Settings specific to headless payload seeders.
+    #[serde(default)]
+    pub host: HostConfig,
     /// P2P networking settings: ports, bootstrap nodes, and mDNS.
     pub network: P2pConfig,
     /// Network time provider settings: custom endpoints and DNS seed.
@@ -69,10 +77,6 @@ pub struct BeaconConfig {
     /// Domains to query via DNS TXT records for dynamic provider endpoints.
     #[serde(default = "default_beacon_seed_domain")]
     pub beacon_seed_domain: Vec<String>,
-    /// If true, the node will only listen to P2P gossipsub for network kyns
-    /// and will not query the internet via HTTP/DNS.
-    #[serde(default)]
-    pub p2p_only: bool,
 }
 
 fn default_beacon_endpoints() -> Vec<String> {
@@ -91,17 +95,28 @@ impl Default for BeaconConfig {
         Self {
             endpoints: default_beacon_endpoints(),
             beacon_seed_domain: default_beacon_seed_domain(),
-            p2p_only: false,
         }
     }
 }
 
-/// Daemon-specific configuration: API ports, storage paths, and operating mode.
+
+/// Generic configuration shared by all Kinetic peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DaemonConfig {
-    /// Local IP address to bind to for daemon services.
+pub struct PeerConfig {
+    /// Local IP address to bind to for generic services.
     #[serde(default = "local_bind_ip")]
     pub bind_ip: String,
+    /// Path to the directory where the embedded storage database is persisted.
+    pub storage_dir: PathBuf,
+    /// Network operating mode. Supported values: `"Router"` (participates in DHT storage & routing)
+    /// or `"Edge"` (queries network without storing records).
+    #[serde(default = "default_network_mode")]
+    pub network_mode: String,
+}
+
+/// Daemon-specific configuration: API ports, proxy settings, and OS integrations.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DaemonConfig {
     /// IP address used by the PAC script and the proxy.
     #[serde(default = "default_pac_bind_ip")]
     pub pac_bind_ip: String,
@@ -121,12 +136,6 @@ pub struct DaemonConfig {
     /// Whether to start the built-in UDP DNS resolver on boot (default: `true`).
     #[serde(default = "default_true")]
     pub enable_nrs: bool,
-    /// Path to the directory where the embedded storage database is persisted.
-    pub storage_dir: PathBuf,
-    /// Network operating mode. Supported values: `"Router"` (participates in DHT storage & routing)
-    /// or `"Edge"` (queries network without storing records).
-    #[serde(default = "default_network_mode")]
-    pub network_mode: String,
 
     /// Port for the PAC (Proxy Auto-Config) server (default: [`ports::PAC`]).
     #[serde(default = "default_pac_port")]
@@ -137,6 +146,61 @@ pub struct DaemonConfig {
     /// UDP port for querying the Kinetic Atlas Bridge daemon (default: `34291`).
     #[serde(default = "default_atlas_port")]
     pub atlas_port: u16,
+    /// If true, the daemon will only listen to P2P gossipsub for network kyns
+    /// and will not query the internet via HTTP/DNS.
+    #[serde(default = "default_true")]
+    pub p2p_only: bool,
+}
+
+/// Node-specific configuration for headless cloud routers.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NodeConfig {
+    /// If true, the node will only listen to P2P gossipsub for network kyns
+    /// and will not query the internet via HTTP/DNS. (Nodes default to false).
+    #[serde(default = "default_false")]
+    pub p2p_only: bool,
+    // Reserved for future cloud-specific routing and performance limits.
+}
+
+impl Default for NodeConfig {
+    fn default() -> Self {
+        Self {
+            p2p_only: false,
+        }
+    }
+}
+
+/// Host-specific configuration for headless payload seeders.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HostConfig {
+    /// The local port where the Web2 server is listening.
+    #[serde(default = "default_host_backend_port")]
+    pub backend_port: u16,
+    /// The local host address where the Web2 server is listening.
+    #[serde(default = "default_host_backend_ip")]
+    pub backend_host: String,
+    /// If true, the host will only listen to P2P gossipsub for network kyns
+    /// and will not query the internet via HTTP/DNS.
+    #[serde(default = "default_true")]
+    pub p2p_only: bool,
+}
+
+impl Default for HostConfig {
+    fn default() -> Self {
+        Self {
+            backend_port: default_host_backend_port(),
+            backend_host: default_host_backend_ip(),
+            p2p_only: true,
+        }
+    }
+}
+
+fn default_host_backend_port() -> u16 {
+    80
+}
+
+fn default_host_backend_ip() -> String {
+    "127.0.0.1".to_string()
 }
 
 fn local_bind_ip() -> String {
@@ -149,6 +213,10 @@ fn default_pac_bind_ip() -> String {
 
 fn default_true() -> bool {
     true
+}
+
+fn default_false() -> bool {
+    false
 }
 
 fn default_network_mode() -> String {
@@ -260,20 +328,25 @@ impl Default for KineticConfig {
         let storage_dir = PathBuf::from("/kinetic-db");
 
         Self {
-            daemon: DaemonConfig {
+            peer: PeerConfig {
                 bind_ip: crate::constants::LOCAL_BIND_IP.to_string(),
+                storage_dir,
+                network_mode: "Router".to_string(),
+            },
+            daemon: DaemonConfig {
                 pac_bind_ip: crate::constants::LOCAL_BIND_IP.to_string(),
                 api_port: ports::API_DAEMON,
                 nrs_port: ports::NRS,
                 proxy_port: ports::PROXY,
                 backend_port: ports::BACKEND,
                 enable_nrs: true,
-                storage_dir,
-                network_mode: "Router".to_string(),
                 pac_port: ports::PAC,
                 ipfs_gateway: crate::constants::IPFS_GATEWAY.to_string(),
                 atlas_port: 34291,
+                p2p_only: true,
             },
+            node: NodeConfig::default(),
+            host: HostConfig::default(),
             network: P2pConfig {
                 daemon_port: ports::P2P_DAEMON,
                 daemon_quic_port: ports::P2P_DAEMON,

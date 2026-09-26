@@ -13,7 +13,7 @@ pub async fn handle_dns_flush(
     let port = config.daemon.api_port;
     let url = format!(
         "http://{}:{}/api/v1/micro/config/dns/flush",
-        config.daemon.bind_ip, port
+        config.peer.bind_ip, port
     );
     let resp = client.post(&url).send().await?;
 

@@ -17,7 +17,7 @@ pub async fn handle_name_renew(
 
     let diff_url = format!(
         "http://{}:{}/api/v1/micro/vdf/iterations/{}",
-        config.daemon.bind_ip, config.daemon.api_port, fqdn
+        config.peer.bind_ip, config.daemon.api_port, fqdn
     );
     let mut time_str = "an unknown amount of time".to_string();
     let mut rating_str = "".to_string();
@@ -46,7 +46,7 @@ pub async fn handle_name_renew(
 
     let daemon_url = format!(
         "http://{}:{}/api/v1/macro/renew",
-        config.daemon.bind_ip, config.daemon.api_port
+        config.peer.bind_ip, config.daemon.api_port
     );
     let req_body = json!({ "name": fqdn, "iterations": actual_iterations });
     let response = client.post(&daemon_url).json(&req_body).send().await;
@@ -87,7 +87,7 @@ pub async fn handle_name_renew(
 
     let status_url = format!(
         "http://{}:{}/api/v1/macro/status/{}",
-        config.daemon.bind_ip, config.daemon.api_port, task_id
+        config.peer.bind_ip, config.daemon.api_port, task_id
     );
 
     loop {

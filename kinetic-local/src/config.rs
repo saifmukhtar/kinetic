@@ -8,7 +8,7 @@ pub fn load_config() -> KineticConfig {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn load_config_ctx(ctx: ConfigContext) -> KineticConfig {
+pub fn load_config_ctx(_ctx: ConfigContext) -> KineticConfig {
     let config_path = std::env::var(kinetic_core::constants::ENV_CONFIG)
         .map(PathBuf::from)
         .unwrap_or_else(|_| base_dir().join("config.toml"));
@@ -28,8 +28,8 @@ pub fn load_config_ctx(ctx: ConfigContext) -> KineticConfig {
             }
         },
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            let mut default_cfg = KineticConfig::default();
-            default_cfg.beacon.p2p_only = ctx == ConfigContext::Daemon;
+            let default_cfg = KineticConfig::default();
+
 
             if let Some(parent) = config_path.parent() {
                 let _ = fs::create_dir_all(parent)

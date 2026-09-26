@@ -7,7 +7,7 @@ pub async fn handle_reserved(
     let port = config.daemon.api_port;
     let url = format!(
         "http://{}:{}/api/v1/micro/nrs/reserved",
-        config.daemon.bind_ip, port
+        config.peer.bind_ip, port
     );
 
     let resp = client.get(&url).send().await?;

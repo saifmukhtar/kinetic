@@ -191,7 +191,7 @@ pub async fn run_node() -> Result<()> {
 
     // 2. Initialize embedded storage
     let base_config_dir = kinetic_local::config::base_dir();
-    let storage_dir = base_config_dir.join(&config.daemon.storage_dir);
+    let storage_dir = base_config_dir.join(&config.peer.storage_dir);
     std::fs::create_dir_all(&storage_dir)?;
 
     let storage_path = storage_dir.join("kinetic-node.db");
@@ -465,7 +465,7 @@ pub async fn run_node() -> Result<()> {
     // 6. Start Time Oracle Heartbeat
     let hb_kyn_provider = kyn_provider.clone();
     let hb_network = network_client.clone();
-    let p2p_only = config.beacon.p2p_only;
+    let p2p_only = config.node.p2p_only;
     tokio::spawn(async move {
         // Quicknet produces a block every 3 seconds.
         let mut interval = tokio::time::interval(Duration::from_secs(3));
@@ -516,7 +516,7 @@ pub async fn run_node() -> Result<()> {
     let app = api::build_router(local_peer_id);
     let api_port = 16003;
     let bind_ip = config
-        .daemon
+        .peer
         .bind_ip
         .parse::<std::net::IpAddr>()
         .unwrap_or(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)));

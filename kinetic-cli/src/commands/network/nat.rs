@@ -4,7 +4,7 @@ pub async fn handle_nat(config: &KineticConfig, client: &reqwest::Client) -> any
     let port = config.daemon.api_port;
     let url = format!(
         "http://{}:{}/api/v1/micro/network/nat",
-        config.daemon.bind_ip, port
+        config.peer.bind_ip, port
     );
 
     let resp = client.get(&url).send().await?;

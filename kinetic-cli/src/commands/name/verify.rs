@@ -8,7 +8,7 @@ pub async fn handle_verify(
     let port = config.daemon.api_port;
     let url = format!(
         "http://{}:{}/api/v1/micro/nrs/verify/{}",
-        config.daemon.bind_ip, port, name
+        config.peer.bind_ip, port, name
     );
 
     let resp = client.get(&url).send().await?;

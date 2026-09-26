@@ -51,7 +51,7 @@ pub fn start_telemetry_service(
                 _ => OsType::Other,
             };
 
-            let network_mode = match config.daemon.network_mode.as_str() {
+            let network_mode = match config.peer.network_mode.as_str() {
                 "Edge" => NetworkMode::Edge,
                 _ => NetworkMode::Router,
             };

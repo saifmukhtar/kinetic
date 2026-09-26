@@ -290,7 +290,7 @@ async fn run_daemon() -> Result<()> {
     info!("Starting Kinetic Daemon (PID: {})...", std::process::id());
 
     let base_config_dir = kinetic_local::config::base_dir();
-    let storage_dir = base_config_dir.join(&config.daemon.storage_dir);
+    let storage_dir = base_config_dir.join(&config.peer.storage_dir);
     std::fs::create_dir_all(&storage_dir)?;
 
     let storage_path = storage_dir.join("kinetic.db");
@@ -369,7 +369,7 @@ async fn run_daemon() -> Result<()> {
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
     tracing::info!("Daemon starting with Peer ID: {}", local_peer_id);
 
-    let mode = match config.daemon.network_mode.as_str() {
+    let mode = match config.peer.network_mode.as_str() {
         "Edge" => NetworkMode::Edge,
         _ => NetworkMode::Router,
     };
@@ -627,7 +627,7 @@ async fn run_daemon() -> Result<()> {
     });
 
     let handler_client = network_client.clone();
-    let handler_bind_ip = config.daemon.bind_ip.clone();
+    let handler_bind_ip = config.peer.bind_ip.clone();
     tokio::spawn(async move {
         proxy::handle_incoming_proxy_requests(
             handler_client,
@@ -644,7 +644,7 @@ async fn run_daemon() -> Result<()> {
         network_client.clone(),
         storage.clone(),
         gossip_tx.clone(),
-        config.daemon.bind_ip.clone(),
+        config.peer.bind_ip.clone(),
         config.daemon.api_port,
         atlas_nsps.clone(),
         host_speed_ips,
@@ -660,7 +660,7 @@ async fn run_daemon() -> Result<()> {
         storage.clone(),
         network_client.clone(),
         kyn_provider.clone(),
-        config.beacon.p2p_only,
+        config.daemon.p2p_only,
         initial_kyn,
         daemon_keypair.clone(),
         kyn_tx.clone(),
@@ -694,7 +694,7 @@ async fn run_daemon() -> Result<()> {
     if config.daemon.enable_nrs {
         let api_url = format!(
             "http://{}:{}",
-            config.daemon.bind_ip, config.daemon.api_port
+            config.peer.bind_ip, config.daemon.api_port
         );
         let dns_handler = kinetic_nrs::KineticNrsHandler::new(
             api_url,
@@ -705,13 +705,13 @@ async fn run_daemon() -> Result<()> {
 
         let udp_bind = tokio::net::UdpSocket::bind(format!(
             "{}:{}",
-            config.daemon.bind_ip, config.daemon.nrs_port
+            config.peer.bind_ip, config.daemon.nrs_port
         ))
         .await;
 
         let tcp_bind = tokio::net::TcpListener::bind(format!(
             "{}:{}",
-            config.daemon.bind_ip, config.daemon.nrs_port
+            config.peer.bind_ip, config.daemon.nrs_port
         ))
         .await;
 
@@ -735,7 +735,7 @@ async fn run_daemon() -> Result<()> {
             }
             (Err(e), _) | (_, Err(e)) => {
                 tracing::error!(
-                    error = ?kinetic_core::error::SystemError::PortInUse(format!("{}:{}", config.daemon.bind_ip, config.daemon.nrs_port)),
+                    error = ?kinetic_core::error::SystemError::PortInUse(format!("{}:{}", config.peer.bind_ip, config.daemon.nrs_port)),
                     "Failed to bind built-in DNS server to port {} (likely EADDRINUSE from systemd-resolved). DNS server disabled, but daemon will continue running! Error: {}",
                     config.daemon.nrs_port, e
                 );

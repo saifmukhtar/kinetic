@@ -59,7 +59,7 @@ pub async fn handle_identity_command(
     client: &Client,
 ) -> anyhow::Result<()> {
     let port = config.daemon.api_port;
-    let base_url = format!("http://{}:{}", config.daemon.bind_ip, port);
+    let base_url = format!("http://{}:{}", config.peer.bind_ip, port);
 
     match cmd {
         IdentityCommands::Generate {

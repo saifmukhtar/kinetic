@@ -31,8 +31,7 @@
 use kinetic_core::traits::KynProvider;
 /// Health-check REST API.
 pub mod api;
-/// Configuration for the host proxy backend.
-pub mod config;
+
 /// KYN epoch manager and dynamic routing publisher.
 pub mod epoch;
 /// P2P Gossipsub network handlers.
@@ -134,7 +133,7 @@ async fn run_host() -> Result<()> {
 
     // 2. Initialize embedded storage
     let base_config_dir = kinetic_local::config::base_dir();
-    let storage_dir = base_config_dir.join(&config.daemon.storage_dir);
+    let storage_dir = base_config_dir.join(&config.peer.storage_dir);
     std::fs::create_dir_all(&storage_dir)?;
 
     let storage_path = storage_dir.join("kinetic-host.db");
@@ -381,7 +380,7 @@ async fn run_host() -> Result<()> {
 
     // 7. Start Health-check API
     let bind_ip = config
-        .daemon
+        .peer
         .bind_ip
         .parse::<std::net::IpAddr>()
         .unwrap_or(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)));
@@ -433,13 +432,11 @@ async fn configure_port(arg_port: Option<u16>) -> Result<()> {
         }
     }
 
-    let config_path = kinetic_local::config::base_dir().join("host_config.json");
-    let config = crate::config::HostConfig {
-        backend_port: port,
-        backend_host: "127.0.0.1".to_string(),
-    };
-    config.save(&config_path)?;
-    println!("Configuration saved to {:?}", config_path);
+    let mut config = kinetic_local::config::load_config();
+    config.host.backend_port = port;
+    config.host.backend_host = "127.0.0.1".to_string();
+    kinetic_local::config::save_config(&config)?;
+    println!("Configuration saved to network.json");
 
     Ok(())
 }

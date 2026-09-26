@@ -15,7 +15,7 @@ pub async fn handle_nrs_update(
     let port = config.daemon.api_port;
     let url = format!(
         "http://{}:{}/api/v1/micro/nrs/nrs-update/{}",
-        config.daemon.bind_ip, port, name
+        config.peer.bind_ip, port, name
     );
 
     let resp = client.post(&url).json(&json_body).send().await?;
@@ -46,7 +46,7 @@ pub async fn handle_local_zone(
     let port = config.daemon.api_port;
     let url = format!(
         "http://{}:{}/api/v1/micro/nrs/zone/local/{}",
-        config.daemon.bind_ip, port, name
+        config.peer.bind_ip, port, name
     );
 
     let resp = client.post(&url).json(&json_body).send().await?;
@@ -71,7 +71,7 @@ pub async fn handle_local_zone_delete(
     let port = config.daemon.api_port;
     let url = format!(
         "http://{}:{}/api/v1/micro/nrs/zone/local/{}",
-        config.daemon.bind_ip, port, name
+        config.peer.bind_ip, port, name
     );
 
     let resp = client.delete(&url).send().await?;
@@ -102,7 +102,7 @@ pub async fn handle_authorized_update(
     let port = config.daemon.api_port;
     let url = format!(
         "http://{}:{}/api/v1/micro/nrs/authorized-update/{}",
-        config.daemon.bind_ip, port, name
+        config.peer.bind_ip, port, name
     );
 
     let resp = client.post(&url).json(&json_body).send().await?;

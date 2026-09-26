@@ -162,7 +162,7 @@ pub async fn handle_publish_action(
                     .unwrap_or_else(|_| {
                         let config = kinetic_local::config::load_config();
                         kinetic_local::config::base_dir()
-                            .join(config.daemon.storage_dir)
+                            .join(config.peer.storage_dir)
                             .join("action.db")
                     });
                 if let Err(e) = kinetic_local::action::save_action_to_disk(&action_state, &path) {

@@ -22,7 +22,7 @@ pub async fn handle_restart(
     let port = config.daemon.api_port;
     let url = format!(
         "http://{}:{}/api/v1/micro/system/restart",
-        config.daemon.bind_ip, port
+        config.peer.bind_ip, port
     );
     let resp = client.post(&url).send().await?;
 
@@ -59,7 +59,7 @@ pub async fn handle_shutdown(
     let port = config.daemon.api_port;
     let url = format!(
         "http://{}:{}/api/v1/micro/system/shutdown",
-        config.daemon.bind_ip, port
+        config.peer.bind_ip, port
     );
     let resp = client.post(&url).send().await?;
 
@@ -84,7 +84,7 @@ pub async fn handle_ca_cert(
     let port = config.daemon.api_port;
     let url = format!(
         "http://{}:{}/api/v1/micro/system/ca-cert",
-        config.daemon.bind_ip, port
+        config.peer.bind_ip, port
     );
     let resp = client.get(&url).send().await?;
 

@@ -45,7 +45,7 @@ pub async fn handle_auth_command(
             let port = config.daemon.api_port;
             let url = format!(
                 "http://{}:{}/api/v1/micro/auth/session",
-                config.daemon.bind_ip, port
+                config.peer.bind_ip, port
             );
 
             let payload = serde_json::json!({
@@ -86,7 +86,7 @@ pub async fn handle_auth_command(
             let port = config.daemon.api_port;
             let url = format!(
                 "http://{}:{}/api/v1/micro/auth/sessions",
-                config.daemon.bind_ip, port
+                config.peer.bind_ip, port
             );
 
             let pb = ProgressBar::new_spinner();
@@ -162,7 +162,7 @@ pub async fn handle_auth_command(
             let port = config.daemon.api_port;
             let url = format!(
                 "http://{}:{}/api/v1/micro/auth/session/{}",
-                config.daemon.bind_ip, port, id
+                config.peer.bind_ip, port, id
             );
             let resp = client.delete(&url).send().await?;
 

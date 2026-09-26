@@ -14,7 +14,7 @@ pub async fn handle_name_list(
 
     let daemon_url = format!(
         "http://{}:{}/api/v1/micro/nrs/owned",
-        config.daemon.bind_ip, config.daemon.api_port
+        config.peer.bind_ip, config.daemon.api_port
     );
     let response = client.get(&daemon_url).send().await;
     pb.finish_and_clear();
@@ -73,7 +73,7 @@ pub async fn handle_name_info(
 
     let daemon_url = format!(
         "http://{}:{}/api/v1/micro/nrs/resolve/{}",
-        config.daemon.bind_ip, config.daemon.api_port, fqdn
+        config.peer.bind_ip, config.daemon.api_port, fqdn
     );
     let resolve_res = client.get(&daemon_url).send().await;
     pb.finish_and_clear();
@@ -150,7 +150,7 @@ pub async fn handle_name_resolve(
 
     let daemon_url = format!(
         "http://{}:{}/api/v1/micro/nrs/resolve/{}",
-        config.daemon.bind_ip, config.daemon.api_port, fqdn
+        config.peer.bind_ip, config.daemon.api_port, fqdn
     );
     let resolve_res = client.get(&daemon_url).send().await;
     pb.finish_and_clear();
@@ -185,7 +185,7 @@ pub async fn handle_name_difficulty(
 
     let base_url = format!(
         "http://{}:{}/api/v1/micro/vdf/iterations/{}",
-        config.daemon.bind_ip, port, fqdn
+        config.peer.bind_ip, port, fqdn
     );
     let resp = client.get(&base_url).send().await?;
     if !resp.status().is_success() {
@@ -204,7 +204,7 @@ pub async fn handle_name_difficulty(
     if let Some(idle) = kyns_idle {
         let takeover_url = format!(
             "http://{}:{}/api/v1/micro/vdf/takeover-iterations/{}?kyns_idle={}",
-            config.daemon.bind_ip, port, fqdn, idle
+            config.peer.bind_ip, port, fqdn, idle
         );
         let t_resp = client.get(&takeover_url).send().await?;
         if t_resp.status().is_success() {
@@ -225,7 +225,7 @@ pub async fn handle_name_validate(
     let port = config.daemon.api_port;
     let url = format!(
         "http://{}:{}/api/v1/micro/nrs/validate",
-        config.daemon.bind_ip, port
+        config.peer.bind_ip, port
     );
 
     let payload = serde_json::json!({ "name": name });
