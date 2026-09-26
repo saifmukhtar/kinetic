@@ -1,12 +1,12 @@
 //! Subcommand registry and routing logic for the Kinetic CLI.
 //!
 //! ## Layer 9 Architecture: The Command Router
-//! This module defines the overarching `clap::Subcommand` enum that parses raw 
-//! terminal inputs into strongly-typed Rust enums. Each module within this directory 
+//! This module defines the overarching `clap::Subcommand` enum that parses raw
+//! terminal inputs into strongly-typed Rust enums. Each module within this directory
 //! maps to a specific subset of the Daemon's API surface area.
 //!
-//! No cryptographic or networking logic should ever leak into this directory. 
-//! Every subcommand must strictly construct a JSON payload and delegate execution 
+//! No cryptographic or networking logic should ever leak into this directory.
+//! Every subcommand must strictly construct a JSON payload and delegate execution
 //! to the authenticated `kinetic-daemon` process via `reqwest`.
 
 pub mod action;

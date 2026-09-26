@@ -4,7 +4,7 @@ mod tests {
     use hickory_client::client::{AsyncClient, ClientHandle};
     use hickory_client::udp::UdpClientStream;
     use hickory_server::ServerFuture;
-    use kinetic_core::types::{NrsRecord, NrsZone, Reveal, VdfProof};
+    use kinetic_core::types::{NrsEntry, NrsZone, Reveal, VdfProof};
     use kinetic_nrs::KineticNrsHandler;
     use std::collections::HashMap;
     use std::net::SocketAddr;
@@ -13,18 +13,18 @@ mod tests {
     // A mock handler for the Daemon REST API
     async fn mock_resolve_name(
         Path(name): Path<String>,
-    ) -> Result<Json<kinetic_core::types::NameRecord>, axum::http::StatusCode> {
+    ) -> Result<Json<kinetic_core::types::NameEnvelope>, axum::http::StatusCode> {
         let name = name.trim_end_matches('.');
         if name == "testdns.kin" {
-            let key_a = libp2p::identity::Keypair::generate_ed25519();
+            let _key_a = libp2p::identity::Keypair::generate_ed25519();
             let mut records = HashMap::new();
             records.insert(
                 "@".to_string(),
-                vec![NrsRecord::A("93.184.216.34".parse().unwrap())],
+                vec![NrsEntry::A("93.184.216.34".parse().unwrap())],
             );
             records.insert(
                 "www".to_string(),
-                vec![NrsRecord::A("93.184.216.35".parse().unwrap())],
+                vec![NrsEntry::A("93.184.216.35".parse().unwrap())],
             );
 
             let zone = NrsZone { records };
@@ -33,24 +33,24 @@ mod tests {
             let mut reveal = Reveal {
                 protocol_version: 1,
                 name: "testdns.kin".to_string(),
-                payload,
+                embedded_nrs: payload,
                 salt: [0u8; 32],
-                kyn: kinetic_kyn::types::Kyn(1000),
+                kyn: kinetic_kyn::types::TargetKyn::from(1000),
                 beacon_signature: "".to_string(),
                 iterations: 100000,
                 vdf_proof: VdfProof {
                     proof_bytes: vec![],
                 },
-                pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![]),
-                identity_signature: vec![],
+                pubkey: kinetic_primitives::keypairs::IdentityPubKey(vec![]),
+                identity_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
                 previous_proof: None,
                 authorization: None,
             };
-            let keypair = kinetic_primitives::kinetic_keypair::IdentityPrivKey::generate();
+            let keypair = kinetic_primitives::keypairs::IdentityPrivKey::generate();
             reveal.pubkey = keypair.to_pubkey();
             reveal.identity_signature =
                 keypair.sign(&reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT));
-            Ok(Json(kinetic_core::types::NameRecord::Standard(Box::new(
+            Ok(Json(kinetic_core::types::NameEnvelope::Standard(Box::new(
                 reveal,
             ))))
         } else {

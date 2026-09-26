@@ -14,7 +14,7 @@ async fn test_store_pruning() {
     let store = KineticRecordStore::new(
         PeerId::random(),
         std::sync::Arc::new(storage),
-        0,
+        kinetic_kyn::types::InitialKyn::from(0),
         std::num::NonZeroUsize::new(100).unwrap(),
         100,
         vdf_engine,
@@ -36,7 +36,7 @@ async fn test_store_provider_records() {
     let mut store = KineticRecordStore::new(
         PeerId::random(),
         std::sync::Arc::new(storage),
-        0,
+        kinetic_kyn::types::InitialKyn::from(0),
         std::num::NonZeroUsize::new(100).unwrap(),
         100,
         vdf_engine,
@@ -65,7 +65,7 @@ async fn test_store_remove_provider() {
     let mut store = KineticRecordStore::new(
         PeerId::random(),
         std::sync::Arc::new(storage),
-        0,
+        kinetic_kyn::types::InitialKyn::from(0),
         std::num::NonZeroUsize::new(100).unwrap(),
         100,
         vdf_engine,
@@ -96,7 +96,7 @@ async fn test_store_provided_records() {
     let mut store = KineticRecordStore::new(
         PeerId::random(),
         std::sync::Arc::new(storage),
-        0,
+        kinetic_kyn::types::InitialKyn::from(0),
         std::num::NonZeroUsize::new(100).unwrap(),
         100,
         vdf_engine,

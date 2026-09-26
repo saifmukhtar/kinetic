@@ -363,7 +363,7 @@ impl LeafCertCache {
     /// # Errors
     ///
     /// Returns a `CaError` if generating a new leaf certificate fails.
-    pub fn get_or_create(
+    pub fn load_or_create(
         &mut self,
         domain: &str,
         root_ca: &RootCa,
@@ -414,7 +414,7 @@ mod tests {
 
         for i in 0..10 {
             let domain = format!("test{}.kin", i);
-            cache.get_or_create(&domain, &root_ca).unwrap();
+            cache.load_or_create(&domain, &root_ca).unwrap();
         }
 
         // Assert cache size is max 5

@@ -36,7 +36,7 @@ fn compute_pow_hash(argon2: &Argon2, peer_bytes: &[u8], epoch: u64) -> Option<[u
 }
 
 /// Computes a peer-specific epoch to stagger identity churn across the network.
-pub fn get_staggered_epoch(peer_bytes: &[u8], kyn: kinetic_kyn::types::Kyn) -> u64 {
+pub fn staggered_epoch(peer_bytes: &[u8], kyn: kinetic_kyn::types::Kyn) -> u64 {
     let mut offset_bytes = [0u8; 8];
     let len = peer_bytes.len();
     if len >= 8 {
@@ -50,7 +50,7 @@ pub fn get_staggered_epoch(peer_bytes: &[u8], kyn: kinetic_kyn::types::Kyn) -> u
 }
 
 /// Validates if a PeerId has sufficient proof-of-work for the current or previous epoch.
-pub fn verify_p2p_pow(
+pub fn verify_p2p_challenge(
     peer_id: &PeerId,
     current_kyn: kinetic_kyn::types::Kyn,
     difficulty: u32,
@@ -64,7 +64,7 @@ pub fn verify_p2p_pow(
     }
 
     let peer_bytes = peer_id.to_bytes();
-    let current_epoch = get_staggered_epoch(&peer_bytes, current_kyn);
+    let current_epoch = staggered_epoch(&peer_bytes, current_kyn);
 
     // 16MB memory, 1 iteration, 1 parallelism
     let params = Params::new(16384, 1, 1, None).expect("Valid static Argon2 params");
@@ -91,20 +91,20 @@ pub fn verify_p2p_pow(
 /// Grinds an Ed25519 keypair whose PeerId satisfies the PoW for the current epoch.
 /// WARNING: This is a blocking, CPU-bound operation. If calling from an async context,
 /// ensure it is wrapped in `tokio::task::spawn_blocking` to prevent executor starvation.
-pub fn mine_p2p_keypair(current_kyn: kinetic_kyn::types::Kyn, difficulty: u32) -> Keypair {
+pub fn solve_p2p_challenge(current_kyn: kinetic_kyn::types::Kyn, difficulty: u32) -> Keypair {
     if current_kyn.0 == 0 && !kinetic_core::config::is_dev_mode() {
         panic!("Cannot generate PoW against kyn 0 (KYN Provider uninitialized)");
     }
 
     if kinetic_core::config::is_dev_mode() {
-        info!("Dev mode active: Skipping S/Kademlia identity PoW mining.");
+        info!("Dev mode active: Skipping S/Kademlia identity PoW challenge.");
         return Keypair::generate_ed25519();
     }
 
     let mut attempts: u64 = 0;
 
     info!(
-        "Mining epoch-bound S/Kademlia identity (difficulty: {} bits)...",
+        "Solving epoch-bound S/Kademlia identity challenge (difficulty: {} bits)...",
         difficulty
     );
 
@@ -118,10 +118,10 @@ pub fn mine_p2p_keypair(current_kyn: kinetic_kyn::types::Kyn, difficulty: u32) -
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
         let peer_bytes = peer_id.to_bytes();
-        let current_epoch = get_staggered_epoch(&peer_bytes, current_kyn);
+        let current_epoch = staggered_epoch(&peer_bytes, current_kyn);
 
         let hash = compute_pow_hash(&argon2, &peer_bytes, current_epoch)
-            .expect("Argon2 memory allocation failed during mining");
+            .expect("Argon2 memory allocation failed during challenge");
 
         attempts += 1;
         if leading_zeros(&hash) >= difficulty {
@@ -141,14 +141,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_pow_mining_and_validation() {
+    fn test_peer_challenge_validation() {
         let kyn = 10_000_000;
         let difficulty = 8; // Low difficulty for fast test
-        let kp = mine_p2p_keypair(kinetic_kyn::types::Kyn(kyn), difficulty);
+        let kp = solve_p2p_challenge(kinetic_kyn::types::Kyn(kyn), difficulty);
         let peer_id = PeerId::from(kp.public());
 
         // Should be valid for current kyn
-        assert!(verify_p2p_pow(
+        assert!(verify_p2p_challenge(
             &peer_id,
             kinetic_kyn::types::Kyn(kyn),
             difficulty
@@ -156,7 +156,7 @@ mod tests {
 
         // Should be valid for kyn at the very end of the current epoch
         let end_of_epoch_kyn = (kyn / EPOCH_KYNS) * EPOCH_KYNS + EPOCH_KYNS - 1;
-        assert!(verify_p2p_pow(
+        assert!(verify_p2p_challenge(
             &peer_id,
             kinetic_kyn::types::Kyn(end_of_epoch_kyn),
             difficulty
@@ -164,7 +164,7 @@ mod tests {
 
         // Should be valid for the NEXT epoch's kyn (because we are the "previous epoch" from its perspective)
         let next_epoch_kyn = kyn + EPOCH_KYNS;
-        assert!(verify_p2p_pow(
+        assert!(verify_p2p_challenge(
             &peer_id,
             kinetic_kyn::types::Kyn(next_epoch_kyn),
             difficulty
@@ -172,14 +172,14 @@ mod tests {
 
         // Should NOT be valid for kyn 2 epochs away (unless we get a 1/256 lucky collision)
         let two_epochs_away = kyn + (2 * EPOCH_KYNS);
-        if verify_p2p_pow(
+        if verify_p2p_challenge(
             &peer_id,
             kinetic_kyn::types::Kyn(two_epochs_away),
             difficulty,
         ) {
             println!("Random collision for two_epochs_away - skipping assert");
         } else {
-            assert!(!verify_p2p_pow(
+            assert!(!verify_p2p_challenge(
                 &peer_id,
                 kinetic_kyn::types::Kyn(two_epochs_away),
                 difficulty
@@ -189,14 +189,14 @@ mod tests {
         // Should NOT be valid for kyn 1 epoch ago
         if kyn > EPOCH_KYNS {
             let prev_epoch_kyn = kyn - EPOCH_KYNS;
-            if verify_p2p_pow(
+            if verify_p2p_challenge(
                 &peer_id,
                 kinetic_kyn::types::Kyn(prev_epoch_kyn),
                 difficulty,
             ) {
                 println!("Random collision for prev_epoch_kyn - skipping assert");
             } else {
-                assert!(!verify_p2p_pow(
+                assert!(!verify_p2p_challenge(
                     &peer_id,
                     kinetic_kyn::types::Kyn(prev_epoch_kyn),
                     difficulty

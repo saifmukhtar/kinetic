@@ -12,7 +12,7 @@
 //! The `network_salt` prevents key collisions between different Kinetic NSP networks.
 
 pub use kinetic_types::name_record::{
-    Heartbeat, M_REDUNDANCY, NameRecord, derive_heartbeat_keys, derive_storage_keys,
+    Heartbeat, M_REDUNDANCY, NameEnvelope, derive_heartbeat_keys, derive_storage_keys,
 };
 
 #[cfg(test)]

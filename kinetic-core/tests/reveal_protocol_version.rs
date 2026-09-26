@@ -6,16 +6,20 @@ fn test_protocol_downgrade_prevention() {
     let reveal_v1 = Reveal {
         protocol_version: 1,
         name: format!("{}{}", "saifmukhtar", kinetic_core::constants::NSP_SUFFIX),
-        payload: vec![1, 2, 3],
+        embedded_nrs: vec![1, 2, 3],
         salt: [0u8; 32],
-        kyn: kinetic_kyn::types::Kyn(100),
+        kyn: kinetic_kyn::types::TargetKyn::from(100),
         beacon_signature: "0".repeat(192),
         iterations: 1000,
         vdf_proof: VdfProof {
             proof_bytes: vec![4, 5, 6],
         },
-        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
-        identity_signature: vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+        pubkey: kinetic_primitives::keypairs::IdentityPubKey(
+            vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+        ),
+        identity_signature: kinetic_primitives::keypairs::IdentitySignature(
+            vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+        ),
         previous_proof: None,
         authorization: None,
     };

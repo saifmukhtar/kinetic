@@ -10,12 +10,11 @@
 //! ## Architecture & Module Map
 //!
 //! - **[`config`]** — Daemon configuration structures ([`KineticConfig`](config::KineticConfig)) and network port defaults.
-//! - **[`types`]** — Shared wire-format types ([`NrsZone`](types::NrsZone), [`NrsRecord`](types::NrsRecord), [`Commitment`](types::Commitment), [`VdfProof`](types::VdfProof)) and name normalization rules.
+//! - **[`types`]** — Shared wire-format types ([`NrsZone`](types::NrsZone), [`NrsEntry`](types::NrsEntry), [`Commitment`](types::Commitment), [`VdfProof`](types::VdfProof)) and name normalization rules.
 //! - **[`error`]** — Unified error logbook ([`KineticError`](error::KineticError)), domain errors ([`ResolutionError`](error::ResolutionError), [`PublishError`](error::PublishError), [`RegistrationError`](error::RegistrationError)), and stable error codes.
 //! - **[`traits`]** — Core abstraction traits ([`StorageEngine`](traits::StorageEngine) and [`VdfEngine`](traits::VdfEngine)).
 //! - **[`action`]** — Sovereign state machine and parameter rulebooks controlling privileged protocol actions.
-//! - **[`consensus_math`]** — Deterministic math routines for VDF difficulty scaling, name-length pricing, and grace period calculations.
-//! - **[`drand`]** — Client interface for the network time provider used in time-bound operations.
+//! - **[`physics`]** — Deterministic math routines for VDF difficulty scaling, name-length pricing, and grace period calculations.
 //! - **[`net`]** — Network security primitives, IP classification, and SSRF prevention guards.
 //! - **[`shutdown`]** — Cross-platform graceful shutdown listeners.
 
@@ -26,12 +25,11 @@
 
 /// Config file loading, default values, and port constants for all Kinetic binaries.
 pub mod config;
-/// Mathematical helpers for consensus: VDF difficulty scaling and name-length fees.
-pub mod consensus_math;
+/// Mathematical helpers for VDF physics: VDF difficulty scaling and name-length fees.
+pub mod physics;
 /// Global protocol constants.
 pub mod constants;
-/// Network time provider client for epoch-bound randomness and Sybil-resistance.
-pub mod drand;
+
 /// Unified error taxonomy: [`KineticError`](error::KineticError), [`ResolutionError`](error::ResolutionError), [`PublishError`](error::PublishError), and [`RegistrationError`](error::RegistrationError).
 pub mod error;
 /// Network security utilities for SSRF prevention.

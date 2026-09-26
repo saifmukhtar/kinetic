@@ -9,7 +9,7 @@ use tokio::sync::oneshot;
 #[derive(Debug)]
 pub enum Command {
     /// Get the current KYN Provider time from the event loop state.
-    GetCurrentKyn {
+    FetchCurrentKyn {
         /// Channel to return the kyn.
         responder: oneshot::Sender<u64>,
     },
@@ -106,17 +106,17 @@ pub enum Command {
         acceptance: libp2p::gossipsub::MessageAcceptance,
     },
     /// Retrieve a list of all currently connected Peer IDs.
-    GetConnectedPeers {
+    FetchConnectedPeers {
         /// Channel to return the list of Peer IDs.
         responder: oneshot::Sender<std::result::Result<Vec<String>, NetworkClientError>>,
     },
     /// Retrieve a list of active Gossipsub topics.
-    GetGossipTopics {
+    FetchGossipTopics {
         /// Channel to return the list of topics.
         responder: oneshot::Sender<std::result::Result<Vec<String>, NetworkClientError>>,
     },
     /// Retrieve a list of all currently banned Peer IDs.
-    GetBannedPeers {
+    FetchBannedPeers {
         /// Channel to return a list of (PeerId, ExpirationKyn).
         responder: oneshot::Sender<std::result::Result<Vec<(String, u64)>, NetworkClientError>>,
     },
@@ -134,6 +134,6 @@ pub enum Command {
     /// Update the local cache of the action log.
     UpdateActionLog {
         /// The latest list of executed action actions.
-        actions: Vec<kinetic_types::action::SignedActionMessage>,
+        actions: Vec<kinetic_types::action::SignedNetworkAction>,
     },
 }

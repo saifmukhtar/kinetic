@@ -3,10 +3,10 @@ use thiserror::Error;
 /// The comprehensive error type returned by all operations in the `kinetic-kid` crate.
 ///
 /// # Semantic Output Boundary
-/// This enum defines the strict boundaries of the `kinetic-kid` mathematical sandbox. 
-/// Any failure returned here represents a cryptographically or structurally invalid 
-/// identity document. These errors are designed to be caught by the `kinetic-daemon` 
-/// and safely exposed to the user or API consumer via the [`Error::code`] and 
+/// This enum defines the strict boundaries of the `kinetic-kid` mathematical sandbox.
+/// Any failure returned here represents a cryptographically or structurally invalid
+/// identity document. These errors are designed to be caught by the `kinetic-daemon`
+/// and safely exposed to the user or API consumer via the [`Error::code`] and
 /// [`Error::user_message`] implementations.
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum Error {

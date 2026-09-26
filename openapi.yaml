@@ -113,7 +113,7 @@ components:
         - status
         - iterations
         - progress
-    NrsRecord:
+    NrsEntry:
       type: object
       properties:
         type:
@@ -132,7 +132,7 @@ components:
           additionalProperties:
             type: array
             items:
-              $ref: '#/components/schemas/NrsRecord'
+              $ref: '#/components/schemas/NrsEntry'
     VdfProof:
       type: object
       properties:
@@ -1181,7 +1181,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NameRecord'
+              $ref: '#/components/schemas/NameEnvelope'
       responses:
         '200':
           description: Quorum check result
@@ -1486,9 +1486,9 @@ paths:
                       type: integer
                     error:
                       type: string
-  /api/v1/micro/nrs/fat-zone/{name}:
+  /api/v1/micro/nrs/nrs-update/{name}:
     post:
-      operationId: postFatZone
+      operationId: postNrsUpdate
       summary: Publish a Fat NRS Zone Update using a delegated hot key [Private]
       tags: [NRS]
       security:
@@ -1514,15 +1514,15 @@ paths:
                   $ref: '#/components/schemas/NrsZone'
       responses:
         '200':
-          description: Fat Zone successfully published
+          description: NrsZone successfully published
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishResponse'
-  /api/v1/micro/nrs/fat-heartbeat/{name}:
+  /api/v1/micro/nrs/authorized-update/{name}:
     post:
-      operationId: postFatHeartbeat
-      summary: Broadcast a Fat Heartbeat using a delegated hot key [Private]
+      operationId: postAuthorizedUpdate
+      summary: Broadcast a AuthorizedUpdate using a delegated hot key [Private]
       tags: [Heartbeat]
       security:
         - bearerAuth: []
@@ -1545,7 +1545,7 @@ paths:
                   type: object
       responses:
         '200':
-          description: Fat Heartbeat successfully broadcasted
+          description: AuthorizedUpdate successfully broadcasted
           content:
             application/json:
               schema:

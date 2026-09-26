@@ -1,4 +1,4 @@
-//! Consensus difficulty math, Name Difficulty Curve (NDC), and inverse-square name takeover calculations.
+//! VDF difficulty math, Name Difficulty Curve (NDC), and inverse-square name takeover calculations.
 //!
 //! # Name Difficulty Curve (NDC)
 //!
@@ -17,13 +17,13 @@
 //!
 //! $$\text{Multiplier} = \left(\frac{\text{takeover\_target\_kyns}}{\text{kyns\_idle} + 1}\right)^2$$
 
-/// Consensus parameters controlling VDF difficulty and name takeover decay rates.
-pub struct ConsensusParams {
+/// VDF parameters controlling VDF difficulty and name takeover decay rates.
+pub struct NetworkPhysics {
     /// Number of Drand kyns a name must remain idle before takeover difficulty decays to $1\times$.
     pub takeover_target_kyns: u64,
 }
 
-impl Default for ConsensusParams {
+impl Default for NetworkPhysics {
     fn default() -> Self {
         Self {
             takeover_target_kyns: crate::constants::TAKEOVER_TARGET_KYNS,
@@ -31,7 +31,7 @@ impl Default for ConsensusParams {
     }
 }
 
-impl ConsensusParams {
+impl NetworkPhysics {
     /// Returns the baseline hardware anchor iteration benchmark defined for the network.
     pub fn anchor(&self) -> u64 {
         crate::constants::BASE_ITERATIONS
@@ -44,9 +44,9 @@ impl ConsensusParams {
     /// # Examples
     ///
     /// ```
-    /// use kinetic_core::consensus_math::ConsensusParams;
+    /// use kinetic_core::physics::NetworkPhysics;
     ///
-    /// let params = ConsensusParams::default();
+    /// let params = NetworkPhysics::default();
     /// let iterations = params.iterations("example.kin");
     /// assert!(iterations > 0);
     /// ```
@@ -81,16 +81,16 @@ impl ConsensusParams {
         // Name Difficulty Curve (NDC) dynamically adjusting to the hardware time target.
         // The constants passed in represent the raw target time in minutes.
         match len {
-            0 | 1 => calc(crate::constants::CONSENSUS_NDC_LEN_0_TO_1), // 52,596,000 mins = 100 years
-            2 => calc(crate::constants::CONSENSUS_NDC_LEN_2),          // 43,200 mins = 30 days
-            3 => calc(crate::constants::CONSENSUS_NDC_LEN_3),          // 34,560 mins = 24 days
-            4 => calc(crate::constants::CONSENSUS_NDC_LEN_4),          // 21,600 mins = 15 days
-            5 => calc(crate::constants::CONSENSUS_NDC_LEN_5),          // 1,440 mins = 1 day
-            6 => calc(crate::constants::CONSENSUS_NDC_LEN_6),          // 720 mins = 12 hours
-            7 => calc(crate::constants::CONSENSUS_NDC_LEN_7),          // 150 mins = 2.5 hours
-            8..=10 => calc(crate::constants::CONSENSUS_NDC_LEN_8_TO_10), // 120 mins = 2 hours
-            11..=17 => calc(crate::constants::CONSENSUS_NDC_LEN_11_TO_17), // 90 mins = 1.5 hours
-            18..=20 => calc(crate::constants::CONSENSUS_NDC_LEN_18_TO_20), // 60 mins = 1 hour
+            0 | 1 => calc(crate::constants::PHYSICS_NDC_LEN_0_TO_1), // 52,596,000 mins = 100 years
+            2 => calc(crate::constants::PHYSICS_NDC_LEN_2),          // 43,200 mins = 30 days
+            3 => calc(crate::constants::PHYSICS_NDC_LEN_3),          // 34,560 mins = 24 days
+            4 => calc(crate::constants::PHYSICS_NDC_LEN_4),          // 21,600 mins = 15 days
+            5 => calc(crate::constants::PHYSICS_NDC_LEN_5),          // 1,440 mins = 1 day
+            6 => calc(crate::constants::PHYSICS_NDC_LEN_6),          // 720 mins = 12 hours
+            7 => calc(crate::constants::PHYSICS_NDC_LEN_7),          // 150 mins = 2.5 hours
+            8..=10 => calc(crate::constants::PHYSICS_NDC_LEN_8_TO_10), // 120 mins = 2 hours
+            11..=17 => calc(crate::constants::PHYSICS_NDC_LEN_11_TO_17), // 90 mins = 1.5 hours
+            18..=20 => calc(crate::constants::PHYSICS_NDC_LEN_18_TO_20), // 60 mins = 1 hour
             21..=63 => base, // Baseline (always takes exactly `tm` minutes)
             _ => base,       // Fallback
         }
@@ -104,16 +104,16 @@ impl ConsensusParams {
     /// # Examples
     ///
     /// ```
-    /// use kinetic_core::consensus_math::ConsensusParams;
+    /// use kinetic_core::physics::NetworkPhysics;
     ///
-    /// let params = ConsensusParams::default();
+    /// let params = NetworkPhysics::default();
     /// let base = 100;
     /// // Early takeover attempt requires high multiplier
-    /// let diff_early = params.takeover_diff(base, 100);
+    /// let diff_early = params.takeover_iterations(base, 100);
     /// assert!(diff_early >= base);
     /// ```
     #[allow(clippy::comparison_chain)]
-    pub fn takeover_diff(&self, base_iterations: u64, kyns_idle: u64) -> u64 {
+    pub fn takeover_iterations(&self, base_iterations: u64, kyns_idle: u64) -> u64 {
         let idle_plus = kyns_idle.saturating_add(1) as u128;
         let target_kyns = self.takeover_target_kyns as u128;
 
@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn test_decay_length() {
-        let params = ConsensusParams::default();
+        let params = NetworkPhysics::default();
         let _pk = [0u8; 32];
         let a = params.iterations("a");
         let ab = params.iterations("ab");
@@ -161,14 +161,14 @@ mod tests {
     // Hardware drift is managed manually via network updates.
 
     #[test]
-    fn test_takeover_difficulty() {
-        let params = ConsensusParams::default();
+    fn test_takeover_iterations() {
+        let params = NetworkPhysics::default();
         let target = params.takeover_target_kyns;
 
-        let diff_early = params.takeover_diff(100, target / 2);
+        let diff_early = params.takeover_iterations(100, target / 2);
         assert!(diff_early > 100); // 4x multiplier
 
-        let diff_late = params.takeover_diff(100, target * 2);
+        let diff_late = params.takeover_iterations(100, target * 2);
         assert_eq!(diff_late, 100); // 1x multiplier (min)
     }
 }

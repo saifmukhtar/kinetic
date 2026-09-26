@@ -12,9 +12,9 @@ use kinetic_network::client::{NetworkClient, NetworkConfig, NetworkMode};
 use kinetic_network::event_loop::NetworkEventLoop;
 use kinetic_storage::KineticStorage;
 
-// 1. Configure the network mode (Full Node serving DHT vs Light Node)
+// 1. Configure the network mode (Router serving DHT vs Edge Node)
 let config = NetworkConfig {
-    mode: NetworkMode::FullNode,
+    mode: NetworkMode::Router,
     listen_addresses: vec!["/ip4/0.0.0.0/tcp/16000".parse().unwrap()],
     ..Default::default()
 };
@@ -41,7 +41,7 @@ Because `kinetic-network` is exposed directly to the public internet, it employs
 To fully understand this crate, we recommend reading it in the following order:
 
 ### Prerequisites
-* **kinetic-core:** You must understand `NrsZone`, `Kyn`, and `NameRecord` structures.
+* **kinetic-core:** You must understand `NrsZone`, `Kyn`, and `NameEnvelope` structures.
 * **kinetic-local:** You should understand `GLOBAL_ACTION_STATE` (which dictates emergency network pauses).
 * **kinetic-verify:** You must understand how identity signatures are validated.
 

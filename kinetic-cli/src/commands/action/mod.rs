@@ -1,7 +1,7 @@
 //! CLI commands for submitting, signing, and managing Sovereign Kinetic network action proposals.
 
 use clap::Subcommand;
-use kinetic_core::action::SignedActionMessage;
+use kinetic_core::action::SignedNetworkAction;
 use kinetic_core::config::KineticConfig;
 use reqwest::Client;
 use std::path::PathBuf;
@@ -16,7 +16,6 @@ pub enum ActionCommands {
     },
     /// View the status of the current active network action proposal
     Status,
-
 }
 
 /// Dispatches action-related CLI subcommands.
@@ -26,14 +25,14 @@ pub async fn handle_action_command(
     client: &Client,
 ) -> anyhow::Result<()> {
     let port = config.daemon.api_port;
-    let base_url = format!("http://{}:{}", config.daemon.bind_ip, port);
+    let base_url = format!("http://{}:{}", config.peer.bind_ip, port);
 
     match cmd {
         ActionCommands::Publish { file } => {
             let msg_str = std::fs::read_to_string(&file).map_err(|e| {
                 anyhow::anyhow!("Failed to read action file {}: {}", file.display(), e)
             })?;
-            let msg: SignedActionMessage = serde_json::from_str(&msg_str)
+            let msg: SignedNetworkAction = serde_json::from_str(&msg_str)
                 .map_err(|e| anyhow::anyhow!("Failed to parse action JSON: {}", e))?;
 
             let publish_url = format!("{}/api/v1/micro/action/publish", base_url);
@@ -53,7 +52,10 @@ pub async fn handle_action_command(
             } else {
                 let status = publish_resp.status();
                 let err_text = publish_resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &err_text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &err_text)
+                );
             }
         }
         ActionCommands::Status => {
@@ -62,12 +64,14 @@ pub async fn handle_action_command(
             if !resp.status().is_success() {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
             let json: serde_json::Value = resp.json().await?;
             println!("{}", serde_json::to_string_pretty(&json)?);
         }
-
     }
 
     Ok(())

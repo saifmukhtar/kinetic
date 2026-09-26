@@ -3,7 +3,7 @@
 use kinetic_core::config::KineticConfig;
 use kinetic_core::traits::KynProvider;
 use kinetic_types::network::{
-    NetworkMode, NetworkOpcode, NodeType, OsType, Reachability, TelemetryHeartbeat,
+    NetworkMode, NetworkOpcode, OsType, PeerType, Reachability, TelemetryHeartbeat,
 };
 use std::env;
 use std::sync::Arc;
@@ -14,12 +14,12 @@ pub fn start_telemetry_service(
     network_client: crate::client::core::NetworkClient,
     kyn_provider: Arc<dyn KynProvider>,
     config: KineticConfig,
-    node_type: NodeType,
+    node_type: PeerType,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         // Generate a random temporary ID for this boot session in RAM.
         let mut session_id = uuid::Uuid::new_v4().to_string();
-        let mut session_generated_at_kyn = kyn_provider.load_cached().map(|k| k.kyn).unwrap_or(0);
+        let mut session_generated_at_kyn = kyn_provider.load_cached().map(|k| k.kyn()).unwrap_or(0);
         let process_start_time = tokio::time::Instant::now();
 
         // 10 minute interval
@@ -28,7 +28,7 @@ pub fn start_telemetry_service(
         loop {
             interval.tick().await;
 
-            let latest_kyn = kyn_provider.load_cached().map(|k| k.kyn).unwrap_or(0);
+            let latest_kyn = kyn_provider.load_cached().map(|k| k.kyn()).unwrap_or(0);
 
             // 24-Hour TTL Auto-Expire
             // If the process has seen 28,800 Kyns (24 hours) since the last rotation,
@@ -51,15 +51,12 @@ pub fn start_telemetry_service(
                 _ => OsType::Other,
             };
 
-            let network_mode = match config.daemon.network_mode.as_str() {
-                "LightNode" => NetworkMode::LightNode,
-                _ => NetworkMode::FullNode,
+            let network_mode = match config.peer.network_mode.as_str() {
+                "Edge" => NetworkMode::Edge,
+                _ => NetworkMode::Router,
             };
 
-            let metrics = network_client
-                .get_network_status()
-                .await
-                .unwrap_or_default();
+            let metrics = network_client.network_status().await.unwrap_or_default();
 
             let reachability =
                 if let Some(status_str) = metrics.get("nat_status").and_then(|v| v.as_str()) {
@@ -81,7 +78,7 @@ pub fn start_telemetry_service(
                     .and_then(|v| v.as_u64())
                     .unwrap_or(0) as u32,
                 uptime_seconds: process_start_time.elapsed().as_secs(),
-                node_type: node_type.clone(),
+                peer_type: node_type.clone(),
                 network_mode,
                 reachability,
                 latest_kyn: kinetic_kyn::types::Kyn(latest_kyn),

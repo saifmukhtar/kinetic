@@ -94,7 +94,7 @@ impl From<PublishError> for ApiError {
             | PublishError::CommitmentPublishFailed(_)
             | PublishError::KidPublishFailed(_)
             | PublishError::ManifestPublishFailed(_)
-            | PublishError::HostRoutingRecordPublishFailed(_) => (502, "DHT Publish Failed"),
+            | PublishError::HostRoutePublishFailed(_) => (502, "DHT Publish Failed"),
             PublishError::MissingLocalRevealForKid(_)
             | PublishError::MissingLocalRevealForManifest(_) => (404, "Missing Local Reveal"),
             PublishError::ZoneSerializationFailed(_) => (500, "Serialization Failed"),
@@ -149,7 +149,6 @@ impl From<ActionError> for ApiError {
             ActionError::StaleProposal | ActionError::AlreadyExecuted => (409, "Conflict"),
             ActionError::KeyLengthMismatch
             | ActionError::InvalidSignature
-
             | ActionError::InvalidSeedState => (400, "Bad Request"),
             ActionError::StateSaveFailed | ActionError::StateReadFailed => {
                 (500, "Internal Server Error")

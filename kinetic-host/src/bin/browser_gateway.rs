@@ -99,15 +99,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
 
     let current_pulse = fetch_kyn().await;
-    println!("Mining PoW to satisfy kinetic-host anti-spam...");
-    let key = kinetic_network::pow::mine_p2p_keypair(
+    println!("Solving peer challenge to satisfy kinetic-host anti-spam...");
+    let key = kinetic_network::challenge::solve_p2p_challenge(
         kinetic_kyn::types::Kyn(current_pulse),
-        kinetic_core::constants::POW_DIFFICULTY_BITS,
+        kinetic_core::constants::CHALLENGE_THRESHOLD_BITS,
     );
     let storage = Arc::new(KineticStorage::new("./kinetic_gateway_db")?);
 
     let config = NetworkConfig {
-        mode: NetworkMode::LightNode,
+        mode: NetworkMode::Edge,
         listen_addrs: vec![
             "/ip4/0.0.0.0/tcp/0".parse().unwrap(),
             "/ip6/::/tcp/0".parse().unwrap(),
@@ -119,12 +119,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .collect(),
         seed_domain: vec![],
         enable_mdns: false,
-        initial_kyn: 0,
+        initial_kyn: kinetic_kyn::types::InitialKyn::from(0),
         external_address: None,
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE)
             .unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
-        disable_pow: false,
+        disable_challenge: false,
         enable_relay_server: false,
         enable_upnp: false,
         test_mode: false,
@@ -162,7 +162,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_state(state);
 
     let kinetic_config = kinetic_local::config::load_config();
-    let addr = format!("{}:9999", kinetic_config.daemon.bind_ip);
+    let addr = format!("{}:9999", kinetic_config.peer.bind_ip);
     println!("============================================================");
     println!("🌐 HTTP to P2P Gateway is running!");
     println!(

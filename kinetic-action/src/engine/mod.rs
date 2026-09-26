@@ -1,6 +1,6 @@
 //! Network action engine trait drivers for different decision-making models.
 //!
-//! Provides concrete implementations of the [`ActionEngine`] trait, 
+//! Provides concrete implementations of the [`ActionEngine`] trait,
 //! which define the signature rules for network actions.
 
 pub mod permissionless;
@@ -17,7 +17,7 @@ use crate::traits::ActionEngine;
 /// # Panics
 ///
 /// Panics if an unknown model is specified.
-pub fn get_active_engine(model: &str) -> Box<dyn ActionEngine> {
+pub fn active_engine(model: &str) -> Box<dyn ActionEngine> {
     match model {
         "sovereign" => Box::new(sovereign::SovereignEngine),
         "permissionless" => Box::new(permissionless::PermissionlessEngine),

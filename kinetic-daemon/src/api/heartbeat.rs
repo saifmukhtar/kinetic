@@ -17,7 +17,7 @@ pub struct HeartbeatStatusResponse {
     /// The calculated status (Active, Stale, Idle).
     pub status: String,
     /// The Kyn number of the last accepted heartbeat on the DHT.
-    pub latest_kyn: u64,
+    pub latest_kyn: kinetic_kyn::types::CurrentKyn,
     /// The number of Kyns this name has been idle.
     pub kyns_idle: u64,
 }
@@ -26,7 +26,7 @@ pub struct HeartbeatStatusResponse {
 #[derive(Serialize)]
 pub struct HeartbeatsResponse {
     /// The current network Kyn.
-    pub current_kyn: u64,
+    pub current_kyn: kinetic_kyn::types::CurrentKyn,
     /// Status of each locally owned name.
     pub names: Vec<HeartbeatStatusResponse>,
 }
@@ -37,19 +37,21 @@ const ACTIVE_HEARTBEAT_MAX_KYNS: u64 = 200;
 const STALE_HEARTBEAT_MAX_KYNS: u64 = 28_800;
 
 /// Safely fetches the current Kyn using the network client, with verified local database cache fallback.
-async fn get_safe_current_kyn(state: &ApiState) -> u64 {
-    if let Ok(kyn) = state.network.get_current_kyn().await
+async fn safe_current_kyn(state: &ApiState) -> kinetic_kyn::types::CurrentKyn {
+    if let Ok(kyn) = state.network.current_kyn().await
         && kyn > 0
     {
-        return kyn;
+        return kinetic_kyn::types::CurrentKyn::from(kyn);
     }
 
     let kyn_provider =
-        kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
+        kinetic_network::client::beacon::BeaconProvider::new(Some(state.storage.clone()));
     use kinetic_core::traits::KynProvider;
     match kyn_provider.load_cached() {
-        Ok(kyn) if kyn.kyn > 0 => kyn.kyn,
-        _ => kinetic_kyn::types::Kyn::now_local().0,
+        Ok(kyn) if kyn.kyn() > 0 => kinetic_kyn::types::CurrentKyn::from(kyn.kyn()),
+        _ => kinetic_kyn::types::CurrentKyn::from(
+            kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS).0,
+        ),
     }
 }
 
@@ -71,7 +73,7 @@ pub async fn handle_get_heartbeats(
         Err(e) => return Err(crate::api::error::AppError::from(e)),
     };
 
-    let current_kyn = get_safe_current_kyn(&state).await;
+    let current_kyn = safe_current_kyn(&state).await;
 
     let mut handles = Vec::new();
     for name in owned_names {
@@ -89,7 +91,7 @@ pub async fn handle_get_heartbeats(
             match network_res {
                 Ok(bytes) => {
                     if let Ok(hb) = serde_json::from_slice::<Heartbeat>(&bytes) {
-                        let age = current_kyn.saturating_sub(hb.latest_kyn.0);
+                        let age = current_kyn.as_u64().saturating_sub(hb.latest_kyn.0);
                         let status = if age <= ACTIVE_HEARTBEAT_MAX_KYNS {
                             "Active"
                         } else if age <= STALE_HEARTBEAT_MAX_KYNS {
@@ -100,14 +102,14 @@ pub async fn handle_get_heartbeats(
                         statuses.push(HeartbeatStatusResponse {
                             name,
                             status: status.to_string(),
-                            latest_kyn: hb.latest_kyn.0,
+                            latest_kyn: kinetic_kyn::types::CurrentKyn::from(hb.latest_kyn.0),
                             kyns_idle: age,
                         });
                     } else {
                         statuses.push(HeartbeatStatusResponse {
                             name,
                             status: "Unknown (Parse Error)".to_string(),
-                            latest_kyn: 0,
+                            latest_kyn: kinetic_kyn::types::CurrentKyn::from(0),
                             kyns_idle: 0,
                         });
                     }
@@ -116,7 +118,7 @@ pub async fn handle_get_heartbeats(
                     statuses.push(HeartbeatStatusResponse {
                         name,
                         status: "Idle (Not Found on DHT)".to_string(),
-                        latest_kyn: 0,
+                        latest_kyn: kinetic_kyn::types::CurrentKyn::from(0),
                         kyns_idle: 0,
                     });
                 }
@@ -147,12 +149,12 @@ pub async fn handle_post_heartbeat(
         return Err(crate::api::error::AppError(kinetic_rpc::ApiError::from(e)));
     }
 
-    let current_kyn = get_safe_current_kyn(&state).await;
+    let current_kyn = safe_current_kyn(&state).await;
 
     let mut heartbeat = Heartbeat {
         name: normalized.clone(),
-        latest_kyn: kinetic_kyn::types::Kyn(current_kyn),
-        owner_signature: vec![],
+        latest_kyn: kinetic_kyn::types::Kyn(current_kyn.as_u64()),
+        owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
         authorization: None,
     };
 
@@ -175,7 +177,7 @@ pub async fn handle_post_heartbeat(
                 request_id: "".to_string(),
             })
         })?;
-    heartbeat.owner_signature = sig_bytes;
+    heartbeat.owner_signature = kinetic_primitives::keypairs::IdentitySignature(sig_bytes.0);
 
     let payload = serde_json::to_vec(&heartbeat).map_err(|e| {
         crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(format!(
@@ -196,22 +198,22 @@ pub async fn handle_post_heartbeat(
 
 use serde::Deserialize;
 
-/// Request payload for manually broadcasting a Fat Heartbeat.
+/// Request payload for manually broadcasting a AuthorizedUpdate.
 #[derive(Deserialize)]
-pub struct FatHeartbeatRequest {
+pub struct AuthorizedUpdateRequest {
     /// The private key of the hot key, hex encoded, to sign the heartbeat.
     pub hot_key_hex: String,
-    /// The master-key authorized delegation proof.
+    /// The identity-key authorized delegation proof.
     pub authorized_manifest: kinetic_core::types::identity::AuthorizedManifest,
 }
 
-/// Manually constructs and broadcasts a Fat Heartbeat for a specific name to the DHT,
-/// using a delegated hot key and an authorized manifest instead of the daemon master key.
-pub async fn handle_post_fat_heartbeat(
+/// Manually constructs and broadcasts a AuthorizedUpdate for a specific name to the DHT,
+/// using a delegated hot key and an authorized manifest instead of the daemon root Identity Key.
+pub async fn handle_post_authorized_update(
     axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
     State(state): State<ApiState>,
     Path(name): Path<String>,
-    Json(req): Json<FatHeartbeatRequest>,
+    Json(req): Json<AuthorizedUpdateRequest>,
 ) -> Result<Json<serde_json::Value>, crate::api::error::AppError> {
     if !role.can_heartbeat() {
         return Err(crate::api::error::AppError::from(
@@ -244,19 +246,19 @@ pub async fn handle_post_fat_heartbeat(
             e
         )))
     })?;
-    let keypair =
-        kinetic_primitives::kinetic_keypair::IdentityPrivKey::from_slice(&hot_key_bytes).map_err(|e| {
+    let keypair = kinetic_primitives::keypairs::IdentityPrivKey::from_slice(&hot_key_bytes)
+        .map_err(|e| {
             crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(
                 format!("Invalid ML-DSA keypair: {}", e),
             ))
         })?;
 
-    let current_kyn = get_safe_current_kyn(&state).await;
+    let current_kyn = safe_current_kyn(&state).await;
 
     let mut heartbeat = Heartbeat {
         name: normalized.clone(),
-        latest_kyn: kinetic_kyn::types::Kyn(current_kyn),
-        owner_signature: vec![],
+        latest_kyn: kinetic_kyn::types::Kyn(current_kyn.as_u64()),
+        owner_signature: kinetic_primitives::keypairs::IdentitySignature(vec![]),
         authorization: Some(Box::new(req.authorized_manifest)),
     };
 
@@ -278,11 +280,11 @@ pub async fn handle_post_fat_heartbeat(
                 request_id: "".to_string(),
             })
         })?;
-    heartbeat.owner_signature = sig_bytes;
+    heartbeat.owner_signature = kinetic_primitives::keypairs::IdentitySignature(sig_bytes.0);
 
     let payload = serde_json::to_vec(&heartbeat).map_err(|e| {
         crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(format!(
-            "Failed to serialize fat heartbeat: {}",
+            "Failed to serialize authorized update: {}",
             e
         )))
     })?;
@@ -290,7 +292,7 @@ pub async fn handle_post_fat_heartbeat(
     match state.network.publish_heartbeat(&normalized, payload).await {
         Ok(_) => Ok(Json(serde_json::json!({
             "status": "success",
-            "message": format!("Manually broadcasted Fat Heartbeat for {}", normalized),
+            "message": format!("Manually broadcasted AuthorizedUpdate for {}", normalized),
             "kyn": current_kyn
         }))),
         Err(e) => Err(crate::api::error::AppError::from(e)),

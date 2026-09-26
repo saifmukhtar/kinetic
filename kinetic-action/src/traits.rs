@@ -1,11 +1,11 @@
 //! Interface definitions for action evaluation engines.
 //!
 //! Provides the core [`ActionEngine`] trait that all specific consensus modules
-//! (e.g., Sovereign or Permissionless) must implement to validate and execute 
+//! (e.g., Sovereign or Permissionless) must implement to validate and execute
 //! incoming network actions.
 
 use crate::error::ActionError;
-use crate::types::{ActionEffect, ActionState, SignedActionMessage};
+use crate::types::{ActionEffect, ActionState, SignedNetworkAction};
 
 /// Pluggable evaluator for signed network actions.
 pub trait ActionEngine: Send + Sync {
@@ -28,8 +28,8 @@ pub trait ActionEngine: Send + Sync {
     fn verify_action(
         &self,
         state: &mut ActionState,
-        msg: &SignedActionMessage,
-        current_kyn: kinetic_kyn::types::Kyn,
+        msg: &SignedNetworkAction,
+        current_kyn: kinetic_kyn::types::CurrentKyn,
         config: &crate::types::ActionConfig,
     ) -> Result<Option<ActionEffect>, ActionError>;
 
@@ -43,8 +43,8 @@ pub trait ActionEngine: Send + Sync {
     fn execute_action(
         &self,
         state: &mut ActionState,
-        msg: &SignedActionMessage,
-        current_kyn: kinetic_kyn::types::Kyn,
+        msg: &SignedNetworkAction,
+        current_kyn: kinetic_kyn::types::CurrentKyn,
         config: &crate::types::ActionConfig,
     ) -> Option<ActionEffect>;
 }

@@ -1,20 +1,20 @@
 //! Thread-safe `NetworkClient` handle for sending commands to the background P2P event loop.
 //!
 //! ## Channel-Based Mutability Defense
-//! Rather than wrapping the `libp2p::Swarm` in an `Arc<RwLock>` and suffering from catastrophic 
-//! lock contention during heavy Kademlia route tables updates, this module defines the 
+//! Rather than wrapping the `libp2p::Swarm` in an `Arc<RwLock>` and suffering from catastrophic
+//! lock contention during heavy Kademlia route tables updates, this module defines the
 //! `NetworkClient`.
 //!
-//! The `NetworkClient` holds an asynchronous `tokio::sync::mpsc::Sender<Command>` pointing 
-//! directly into the `NetworkEventLoop` receiver. This strictly guarantees that all network 
-//! operations (like `put_record` or `publish_reveal`) are serialized sequentially in the exact 
+//! The `NetworkClient` holds an asynchronous `tokio::sync::mpsc::Sender<Command>` pointing
+//! directly into the `NetworkEventLoop` receiver. This strictly guarantees that all network
+//! operations (like `put_record` or `publish_reveal`) are serialized sequentially in the exact
 //! order they arrive.
 //!
-//! ## Responding Back 
-//! To receive data *back* from the network (e.g. querying a `NameRecord` from the DHT), 
-//! the `NetworkClient` methods dynamically construct `tokio::sync::oneshot::channel` instances, 
-//! attach the `Sender` side to the `Command`, and `await` on the `Receiver` side. This allows 
-//! HTTP API handlers in the daemon to wait for DHT responses without stalling the underlying 
+//! ## Responding Back
+//! To receive data *back* from the network (e.g. querying a `NameEnvelope` from the DHT),
+//! the `NetworkClient` methods dynamically construct `tokio::sync::oneshot::channel` instances,
+//! attach the `Sender` side to the `Command`, and `await` on the `Receiver` side. This allows
+//! HTTP API handlers in the daemon to wait for DHT responses without stalling the underlying
 //! P2P node.
 use crate::client::command::Command;
 use crate::client::types::{ProxyError, ProxyRequest, ProxyResponse};
@@ -81,7 +81,7 @@ impl NetworkClient {
     }
 
     /// Gets a cloned copy of the command sender.
-    pub fn get_sender(&self) -> mpsc::Sender<Command> {
+    pub fn sender(&self) -> mpsc::Sender<Command> {
         self.sender
             .read()
             .unwrap_or_else(|e| e.into_inner())
@@ -152,7 +152,7 @@ impl NetworkClient {
     /// Updates the background event loop's cache of the action log.
     pub async fn update_action_log(
         &self,
-        actions: Vec<kinetic_types::action::SignedActionMessage>,
+        actions: Vec<kinetic_types::action::SignedNetworkAction>,
     ) -> std::result::Result<(), NetworkClientError> {
         let sender_clone = self
             .sender
@@ -413,7 +413,7 @@ impl NetworkClient {
     /// # Errors
     ///
     /// Returns a `NetworkClientError` if the network channel is closed.
-    pub async fn get_network_status(
+    pub async fn network_status(
         &self,
     ) -> std::result::Result<serde_json::Value, NetworkClientError> {
         let (tx, rx) = oneshot::channel();
@@ -455,7 +455,7 @@ impl NetworkClient {
     /// Returns a `NetworkClientError` if serialization fails or publishing the payload fails.
     pub async fn publish_host_routing_record(
         &self,
-        record: kinetic_core::types::HostRoutingRecord,
+        record: kinetic_core::types::HostRoute,
     ) -> std::result::Result<(), NetworkClientError> {
         let key = format!("host_route_{}", record.host_id);
         let bytes =
@@ -471,7 +471,7 @@ impl NetworkClient {
     /// # Errors
     ///
     /// Returns a `NetworkClientError` if the channel is closed.
-    pub async fn get_current_kyn(&self) -> Result<u64, NetworkClientError> {
+    pub async fn current_kyn(&self) -> Result<u64, NetworkClientError> {
         let (tx, rx) = oneshot::channel();
         let sender_clone = self
             .sender
@@ -479,7 +479,7 @@ impl NetworkClient {
             .unwrap_or_else(|e| e.into_inner())
             .clone();
         sender_clone
-            .send(Command::GetCurrentKyn { responder: tx })
+            .send(Command::FetchCurrentKyn { responder: tx })
             .await
             .map_err(|_| NetworkClientError::ChannelClosed)?;
         rx.await.map_err(|_| NetworkClientError::ChannelClosed)
@@ -493,17 +493,20 @@ impl NetworkClient {
     pub async fn resolve_host_routing_record(
         &self,
         host_id: &str,
-    ) -> std::result::Result<Option<kinetic_core::types::HostRoutingRecord>, NetworkClientError>
+    ) -> std::result::Result<Option<kinetic_core::types::HostRoute>, NetworkClientError>
     {
-        let current_kyn = self.get_current_kyn().await?;
+        let current_kyn = self.current_kyn().await?;
         let key = format!("host_route_{}", host_id);
         match self.resolve_redundant_payload(&key).await {
             Ok(bytes) => {
                 let record =
-                    serde_json::from_slice::<kinetic_core::types::HostRoutingRecord>(&bytes)
+                    serde_json::from_slice::<kinetic_core::types::HostRoute>(&bytes)
                         .map_err(|e| NetworkClientError::Other(e.to_string()))?;
-                crate::store::verification::verify_host_routing_record(&record, kinetic_kyn::types::Kyn(current_kyn))
-                    .map_err(|e| NetworkClientError::Other(e.to_string()))?;
+                crate::store::verification::verify_host_routing_record(
+                    &record,
+                    kinetic_kyn::types::Kyn(current_kyn),
+                )
+                .map_err(|e| NetworkClientError::Other(e.to_string()))?;
                 Ok(Some(record))
             }
             Err(ResolutionError::NotFound { .. }) => Ok(None),
@@ -586,37 +589,35 @@ impl NetworkClient {
     }
 
     /// Retrieves the list of currently connected Peer IDs.
-    pub async fn get_connected_peers(
-        &self,
-    ) -> std::result::Result<Vec<String>, NetworkClientError> {
+    pub async fn connected_peers(&self) -> std::result::Result<Vec<String>, NetworkClientError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.get_sender();
+        let sender_clone = self.sender();
         sender_clone
-            .send(Command::GetConnectedPeers { responder: tx })
+            .send(Command::FetchConnectedPeers { responder: tx })
             .await
             .map_err(|_| NetworkClientError::ChannelClosed)?;
         rx.await.map_err(|_| NetworkClientError::ChannelClosed)?
     }
 
     /// Retrieves the list of active Gossipsub topics.
-    pub async fn get_gossip_topics(&self) -> std::result::Result<Vec<String>, NetworkClientError> {
+    pub async fn gossip_topics(&self) -> std::result::Result<Vec<String>, NetworkClientError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.get_sender();
+        let sender_clone = self.sender();
         sender_clone
-            .send(Command::GetGossipTopics { responder: tx })
+            .send(Command::FetchGossipTopics { responder: tx })
             .await
             .map_err(|_| NetworkClientError::ChannelClosed)?;
         rx.await.map_err(|_| NetworkClientError::ChannelClosed)?
     }
 
     /// Retrieves a list of currently banned peers.
-    pub async fn get_banned_peers(
+    pub async fn banned_peers(
         &self,
     ) -> std::result::Result<Vec<(String, u64)>, NetworkClientError> {
         let (tx, rx) = oneshot::channel();
-        let sender_clone = self.get_sender();
+        let sender_clone = self.sender();
         sender_clone
-            .send(Command::GetBannedPeers { responder: tx })
+            .send(Command::FetchBannedPeers { responder: tx })
             .await
             .map_err(|_| NetworkClientError::ChannelClosed)?;
         rx.await.map_err(|_| NetworkClientError::ChannelClosed)?

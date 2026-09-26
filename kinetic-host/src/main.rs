@@ -4,35 +4,34 @@
 //! The headless Kinetic content-hosting executable (`kinetic-host`).
 //!
 //! ## Layer 8 Architecture: The Headless Seeder
-//! A host is a `.kin` domain owner that publicly serves content 24/7. It acts simultaneously 
-//! as a full P2P node and as an ingress reverse proxy. Incoming P2P privacy-routed requests 
-//! for a registered domain are intercepted by this binary and transparently forwarded to a 
+//! A host is a `.kin` domain owner that publicly serves content 24/7. It acts simultaneously
+//! as a full P2P node and as an ingress reverse proxy. Incoming P2P privacy-routed requests
+//! for a registered domain are intercepted by this binary and transparently forwarded to a
 //! backend HTTP server running locally on the same machine.
 //!
-//! Unlike `kinetic-daemon` (which requires interactive CLI inputs, UI access, and heavily 
-//! caches user activity), this executable is designed to be run via `systemd` or Docker 
+//! Unlike `kinetic-daemon` (which requires interactive CLI inputs, UI access, and heavily
+//! caches user activity), this executable is designed to be run via `systemd` or Docker
 //! in the background to ensure data availability.
 //!
 //! ## Key responsibilities
 //!
-//! - **Dynamic identity**: Unlike the cloud infrastructure node (`kinetic-node`), the host 
-//!   must fight DHT spam via an epoch-bound PoW keypair (S/Kademlia). It is automatically 
+//! - **Dynamic identity**: Unlike the cloud infrastructure node (`kinetic-node`), the host
+//!   must fight DHT spam via an epoch-bound peer challenge keypair (S/Kademlia). It is automatically
 //!   rotated each KYN Provider epoch, providing mathematical Sybil resistance.
 //! - **Static host identity**: A separate, long-lived Ed25519 keypair
 //!   (`host.key`) uniquely identifies this host across epochs.
-//!   It is used to sign [`HostRoutingRecord`](kinetic_core::types::HostRoutingRecord)s
+//!   It is used to sign [`HostRoute`](kinetic_core::types::HostRoute)s
 //!   that are published to the DHT so clients can always locate the current
 //!   ephemeral peer ID.
 //! - **Hot-swap network loop**: When the time oracle epoch advances, the host
-//!   automatically aborts the old network loop, mines a new PoW keypair, and
+//!   automatically aborts the old network loop, solves a new peer challenge keypair, and
 //!   restarts the loop without terminating the proxy connections.
 //! - **Health API**: Exposed on port 16004.
 
 use kinetic_core::traits::KynProvider;
 /// Health-check REST API.
 pub mod api;
-/// Configuration for the host proxy backend.
-pub mod config;
+
 /// KYN epoch manager and dynamic routing publisher.
 pub mod epoch;
 /// P2P Gossipsub network handlers.
@@ -54,8 +53,8 @@ use tokio::sync::watch;
 use tracing::{info, warn};
 use tracing_subscriber::FmtSubscriber;
 
-use kinetic_core::drand::RawKyn;
-use kinetic_network::client::time_oracle::TimeOracleProvider;
+use kinetic_kyn::beacon::RawKyn;
+use kinetic_network::client::beacon::BeaconProvider;
 use kinetic_network::{NetworkConfig, NetworkEventLoop, NetworkMode};
 use kinetic_storage::KineticStorage;
 
@@ -95,7 +94,7 @@ async fn main() -> Result<()> {
         Some(Commands::Stop) => service::stop_background_service()?,
         Some(Commands::Port { port }) => configure_port(*port).await?,
         Some(Commands::Id) => {
-            let key_path = kinetic_local::config::get_base_dir().join("host.key");
+            let key_path = kinetic_local::config::base_dir().join("host.key");
             let host_key = host_key::load_or_generate_host_key(&key_path);
             let host_peer_id = libp2p::PeerId::from_public_key(&host_key.public());
             println!("============================================================");
@@ -133,21 +132,22 @@ async fn run_host() -> Result<()> {
     info!("Starting Kinetic Node (Infrastructure Mode)...");
 
     // 2. Initialize embedded storage
-    let base_config_dir = kinetic_local::config::get_base_dir();
-    let storage_dir = base_config_dir.join(&config.daemon.storage_dir);
+    let base_config_dir = kinetic_local::config::base_dir();
+    let storage_dir = base_config_dir.join(&config.peer.storage_dir);
     std::fs::create_dir_all(&storage_dir)?;
 
     let storage_path = storage_dir.join("kinetic-host.db");
     let storage = Arc::new(KineticStorage::new(storage_path.clone())?);
     info!("Storage engine initialized at {:?}", storage_path);
 
-    // 3. Initialize KYN Provider client for PoW validation of ephemeral clients
-    let kyn_provider: Arc<dyn KynProvider> = Arc::new(TimeOracleProvider::new(Some(storage.clone())));
+    // 3. Initialize KYN Provider client for peer challenge validation of ephemeral clients
+    let kyn_provider: Arc<dyn KynProvider> =
+        Arc::new(BeaconProvider::new(Some(storage.clone())));
 
     // 6. Enforce Time Oracle beacon availability on boot (unless in dev mode, which loads a mock cache)
     let initial_kyn = match kyn_provider.fetch_latest().await {
         Ok(kyn) => {
-            info!("KYN Provider Time Oracle connected — kyn #{}", kyn.kyn);
+            info!("Beacon Provider connected — kyn #{}", kyn.kyn());
             kyn
         }
         Err(e) => {
@@ -157,28 +157,28 @@ async fn run_host() -> Result<()> {
         }
     };
 
-    let initial_kyn = initial_kyn.kyn;
+    let initial_kyn = initial_kyn.kyn();
     let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
 
     // 4. Load Static Network Identity (The Permanent Host Key)
-    let key_path = kinetic_local::config::get_base_dir().join("host.key");
+    let key_path = kinetic_local::config::base_dir().join("host.key");
     let host_key = host_key::load_or_generate_host_key(&key_path);
     let host_peer_id = libp2p::PeerId::from_public_key(&host_key.public());
     info!("Infrastructure Node static Host Identity: {}", host_peer_id);
 
-    // 4.5. Mine the Epoch-Bound Ephemeral PoW Key
-    info!("Mining PoW S/Kademlia identity for current epoch...");
+    // 4.5. Solve the Epoch-Bound Ephemeral peer challenge Key
+    info!("Solving peer challenge S/Kademlia identity for current epoch...");
     let local_key = tokio::task::spawn_blocking(move || {
-        kinetic_network::pow::mine_p2p_keypair(
+        kinetic_network::challenge::solve_p2p_challenge(
             kinetic_kyn::types::Kyn(initial_kyn),
-            kinetic_core::constants::POW_DIFFICULTY_BITS,
+            kinetic_core::constants::CHALLENGE_THRESHOLD_BITS,
         )
     })
     .await
-    .map_err(|e| anyhow::anyhow!("PoW mining task failed: {}", e))?;
+    .map_err(|e| anyhow::anyhow!("peer challenge solving task failed: {}", e))?;
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
     info!(
-        "Infrastructure Node ephemeral PoW Identity: {}",
+        "Infrastructure Node ephemeral peer challenge Identity: {}",
         local_peer_id
     );
 
@@ -188,7 +188,7 @@ async fn run_host() -> Result<()> {
         .unwrap_or(config.network.host_port);
 
     let network_config = NetworkConfig {
-        mode: NetworkMode::FullNode,
+        mode: NetworkMode::Router,
         listen_addrs: vec![
             format!("/ip4/0.0.0.0/tcp/{}", p2p_port).parse().unwrap(),
             format!("/ip6/::/tcp/{}", p2p_port).parse().unwrap(),
@@ -213,7 +213,7 @@ async fn run_host() -> Result<()> {
             .map(Into::into)
             .collect(),
         enable_mdns: config.network.enable_mdns,
-        initial_kyn,
+        initial_kyn: kinetic_kyn::types::InitialKyn::from(initial_kyn),
         external_address: config
             .network
             .external_address
@@ -222,7 +222,7 @@ async fn run_host() -> Result<()> {
         max_reveals_per_hour: 100,
         lru_cache_size: std::num::NonZeroUsize::new(kinetic_core::constants::LIMITS_LRU_CACHE_SIZE)
             .unwrap_or(std::num::NonZeroUsize::new(10_000).unwrap()),
-        disable_pow: false,
+        disable_challenge: false,
         enable_relay_server: false,
         enable_upnp: false,
         test_mode: false,
@@ -277,13 +277,15 @@ async fn run_host() -> Result<()> {
         if is_empty {
             tracing::info!("Local action state is empty. Attempting P2P ActionSync...");
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-            if let Ok(peers) = network_client.get_connected_peers().await {
+            if let Ok(peers) = network_client.connected_peers().await {
                 for peer_str in peers {
                     if let Ok(peer_id) = peer_str.parse::<libp2p::PeerId>()
                         && let Ok(resp) = network_client
                             .send_action_sync_request(
                                 peer_id,
-                                kinetic_types::action::ActionSyncRequest { from_kyn: kinetic_kyn::types::Kyn(0) },
+                                kinetic_types::action::ActionSyncRequest {
+                                    from_kyn: kinetic_kyn::types::Kyn(0),
+                                },
                             )
                             .await
                         && !resp.actions.is_empty()
@@ -301,7 +303,7 @@ async fn run_host() -> Result<()> {
                                 if let Err(e) = kinetic_core::action::process_action_message(
                                     &mut action_state,
                                     msg,
-                                    kinetic_kyn::types::Kyn(0),
+                                    kinetic_kyn::types::CurrentKyn::from(0),
                                 ) {
                                     tracing::error!("Failed to apply synced action: {}", e);
                                 }
@@ -327,7 +329,7 @@ async fn run_host() -> Result<()> {
         network_client.clone(),
         kyn_provider.clone(),
         config.clone(),
-        kinetic_types::network::NodeType::Host,
+        kinetic_types::network::PeerType::Host,
     );
 
     tokio::spawn(gossip::start_gossip_listener(
@@ -361,7 +363,7 @@ async fn run_host() -> Result<()> {
         kyn_rx.clone(),
     ));
 
-    tokio::spawn(epoch::start_time_oracle_heartbeat(
+    tokio::spawn(epoch::start_beacon_heartbeat(
         kyn_provider.clone(),
         kyn_tx,
         local_peer_id,
@@ -378,11 +380,11 @@ async fn run_host() -> Result<()> {
 
     // 7. Start Health-check API
     let bind_ip = config
-        .daemon
+        .peer
         .bind_ip
         .parse::<std::net::IpAddr>()
         .unwrap_or(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)));
-    let network_dir = kinetic_local::config::get_base_dir();
+    let network_dir = kinetic_local::config::base_dir();
     api::start_health_api(host_peer_id, bind_ip, network_dir).await?;
 
     Ok(())
@@ -430,13 +432,11 @@ async fn configure_port(arg_port: Option<u16>) -> Result<()> {
         }
     }
 
-    let config_path = kinetic_local::config::get_base_dir().join("host_config.json");
-    let config = crate::config::HostConfig {
-        backend_port: port,
-        backend_host: "127.0.0.1".to_string(),
-    };
-    config.save(&config_path)?;
-    println!("Configuration saved to {:?}", config_path);
+    let mut config = kinetic_local::config::load_config();
+    config.host.backend_port = port;
+    config.host.backend_host = "127.0.0.1".to_string();
+    kinetic_local::config::save_config(&config)?;
+    println!("Configuration saved to network.json");
 
     Ok(())
 }

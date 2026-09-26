@@ -14,8 +14,8 @@ use std::time::Duration;
 ///
 /// ### Execution Flow
 /// 1. **Normalization**: Forces the name to lowercase and ensures the `.kin` suffix.
-/// 2. **Difficulty Prediction**: Calculates the required `iterations` based on the namespace length 
-///    and queries the Daemon's `micro/consensus/difficulty` endpoint to estimate the wall-clock time required.
+/// 2. **Difficulty Prediction**: Calculates the required `iterations` based on the namespace length
+///    and queries the Daemon's `micro/vdf/iterations` endpoint to estimate the wall-clock time required.
 /// 3. **UI Warning**: Displays a stark terminal warning to the user if the registration will take hours.
 /// 4. **Macro API Dispatch**: Dispatches an HTTP POST to the Daemon's `macro/nrs/register` endpoint.
 /// 5. **Async Polling**: Enters a loop, polling the Daemon for the `task_id` progress, rendering a live terminal progress bar.
@@ -27,7 +27,7 @@ pub async fn handle_name_register(
 ) -> anyhow::Result<()> {
     let fqdn = kinetic_core::types::normalize_name(&name);
 
-    let required_iters = kinetic_core::consensus_math::ConsensusParams::default().iterations(&fqdn);
+    let required_iters = kinetic_core::physics::NetworkPhysics::default().iterations(&fqdn);
     let actual_iterations = std::cmp::max(iterations, required_iters);
 
     let label = kinetic_core::types::names::extract_apex_name(&fqdn);
@@ -36,8 +36,8 @@ pub async fn handle_name_register(
         .unwrap_or(&label);
 
     let diff_url = format!(
-        "http://{}:{}/api/v1/micro/consensus/difficulty/{}",
-        config.daemon.bind_ip, config.daemon.api_port, fqdn
+        "http://{}:{}/api/v1/micro/vdf/iterations/{}",
+        config.peer.bind_ip, config.daemon.api_port, fqdn
     );
     let mut time_str = "an unknown amount of time".to_string();
     let mut rating_str = "".to_string();
@@ -101,7 +101,7 @@ pub async fn handle_name_register(
 
     let daemon_url = format!(
         "http://{}:{}/api/v1/macro/register",
-        config.daemon.bind_ip, config.daemon.api_port
+        config.peer.bind_ip, config.daemon.api_port
     );
     let req_body = json!({ "name": fqdn, "iterations": actual_iterations });
     let response = client.post(&daemon_url).json(&req_body).send().await;
@@ -142,7 +142,7 @@ pub async fn handle_name_register(
 
     let status_url = format!(
         "http://{}:{}/api/v1/macro/status/{}",
-        config.daemon.bind_ip, config.daemon.api_port, task_id
+        config.peer.bind_ip, config.daemon.api_port, task_id
     );
 
     loop {

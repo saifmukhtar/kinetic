@@ -11,7 +11,7 @@ This crate is the backbone for any application or subsystem that needs to genera
 use kinetic_types::clock::Kyn;
 
 let time = Kyn::new(150000);
-let timestamp = time.to_utime();
+let timestamp = time.to_ukyn();
 ```
 
 ## 3. Key Taxonomy & Signatures

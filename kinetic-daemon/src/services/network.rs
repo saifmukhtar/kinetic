@@ -1,37 +1,37 @@
-//! Background network loops for dynamic PoW identity rotation and periodic DHT name republishing.
+//! Background network loops for dynamic peer challenge identity rotation and periodic DHT name republishing.
 //!
 //! ## Layer 8 Architecture: Client Identity Rotation
-//! Just like the `kinetic-host` payload seeder, the `kinetic-daemon` must maintain Sybil 
-//! resistance to interact with the Kademlia DHT. It achieves this by continuously calculating 
-//! a Proof-of-Work threshold bound to the current KYN epoch. When the time oracle pulses a 
+//! Just like the `kinetic-host` payload seeder, the `kinetic-daemon` must maintain Sybil
+//! resistance to interact with the Kademlia DHT. It achieves this by continuously calculating
+//! a Proof-of-Work threshold bound to the current KYN epoch. When the time oracle pulses a
 //! new network time, this background worker safely hot-swaps the underlying P2P swarm identity.
 
 use kinetic_core::traits::StorageEngine;
 
 #[allow(clippy::too_many_arguments)]
-/// Initiates the Sybil-resistant Proof-of-Work (PoW) hot-swapping loop.
+/// Initiates the Sybil-resistant Proof-of-Work (peer challenge) hot-swapping loop.
 ///
 /// > [!IMPORTANT]
-/// > Kinetic requires all DHT participants to prove identity through a PoW challenge bound 
+/// > Kinetic requires all DHT participants to prove identity through a peer challenge bound
 /// > to the current cryptographic time epoch (KYN). When time advances, identities expire.
 ///
-/// This asynchronous worker operates completely independently from the REST API. It performs 
+/// This asynchronous worker operates completely independently from the REST API. It performs
 /// three critical state transitions:
 ///
-/// 1. **Time Epoch Monitoring**: It blocks on `kyn_rx.changed()`, waiting for the Gossipsub 
+/// 1. **Time Epoch Monitoring**: It blocks on `kyn_rx.changed()`, waiting for the Gossipsub
 ///    mesh to flood a new Time Oracle pulse.
-/// 2. **Preemptive Mining**: When the network time advances, it spins up a heavily threaded 
-///    background miner (`tokio::task::spawn_blocking`) to calculate a new valid Ed25519 identity 
+/// 2. **Preemptive Solving**: When the network time advances, it spins up a heavily threaded
+///    background solver (`tokio::task::spawn_blocking`) to calculate a new valid Ed25519 identity
 ///    that satisfies the mathematical leading-zero requirement of the new epoch.
-/// 3. **The Hot Swap**: It terminates the existing Libp2p `NetworkEventLoop` handle, re-initializes 
-///    the Swarm with the newly mined PoW identity, and seamlessly re-attaches the MPSC channels.
+/// 3. **The Hot Swap**: It terminates the existing Libp2p `NetworkEventLoop` handle, re-initializes
+///    the Swarm with the newly solved peer challenge identity, and seamlessly re-attaches the MPSC channels.
 ///
 /// ### Arguments
 /// * `hc_client`: The thread-safe channel to the running Libp2p event loop.
 /// * `kyn_rx`: The reactive receiver for Time Oracle pulses.
 /// * `hc_config` & `hc_storage`: Bootstrapping dependencies required to rebuild the Swarm.
 /// * `incoming_tx` & `gossip_tx`: Channels required to reconnect proxy and action routing after the swap.
-pub fn start_pow_miner_loop(
+pub fn start_challenge_solver_loop(
     hc_client: kinetic_network::NetworkClient,
     kyn_rx: tokio::sync::watch::Receiver<u64>,
     hc_config: kinetic_network::NetworkConfig,
@@ -62,7 +62,7 @@ pub fn start_pow_miner_loop(
                 continue;
             }
             let peer_id = libp2p::PeerId::from_public_key(&current_local_key.public());
-            let current_epoch = kinetic_network::pow::get_staggered_epoch(
+            let current_epoch = kinetic_network::challenge::staggered_epoch(
                 &peer_id.to_bytes(),
                 kinetic_kyn::types::Kyn(kyn),
             );
@@ -74,26 +74,26 @@ pub fn start_pow_miner_loop(
 
             if needs_validation {
                 let peer_id_clone = peer_id;
-                let pow_valid = tokio::task::spawn_blocking(move || {
-                    kinetic_network::pow::verify_p2p_pow(
+                let challenge_valid = tokio::task::spawn_blocking(move || {
+                    kinetic_network::challenge::verify_p2p_challenge(
                         &peer_id_clone,
                         kinetic_kyn::types::Kyn(kyn),
-                        kinetic_core::constants::POW_DIFFICULTY_BITS,
+                        kinetic_core::constants::CHALLENGE_THRESHOLD_BITS,
                     )
                 })
                 .await
                 .unwrap_or(false);
 
-                if !pow_valid {
-                    tracing::info!("PoW epoch expired. Remining identity seamlessly...");
+                if !challenge_valid {
+                    tracing::info!("peer challenge epoch expired. Resolving identity seamlessly...");
                     current_local_key = tokio::task::spawn_blocking(move || {
-                        kinetic_network::pow::mine_p2p_keypair(
+                        kinetic_network::challenge::solve_p2p_challenge(
                             kinetic_kyn::types::Kyn(kyn),
-                            kinetic_core::constants::POW_DIFFICULTY_BITS,
+                            kinetic_core::constants::CHALLENGE_THRESHOLD_BITS,
                         )
                     })
                     .await
-                    .expect("mining task panicked");
+                    .expect("solving task panicked");
                     last_verified_epoch = None; // Reset to force revalidation on next loop
 
                     network_loop_handle.abort();
@@ -121,7 +121,7 @@ pub fn start_pow_miner_loop(
                                         error = ?kinetic_core::error::SystemError::NetworkHotswapFailed(e.to_string()),
                                         "FATAL: Failed to hot-swap P2P backend after 10 retries"
                                     );
-                                    return; // Abort miner task
+                                    return; // Abort solver task
                                 }
                                 tracing::warn!(
                                     error = ?kinetic_core::error::SystemError::PortInUse(e.to_string()),
@@ -133,11 +133,11 @@ pub fn start_pow_miner_loop(
                         }
                     };
 
-                    hc_client.update_backend(new_client.get_sender(), new_client.stream_control());
+                    hc_client.update_backend(new_client.sender(), new_client.stream_control());
                     network_loop_handle = tokio::spawn(async move {
                         new_loop.run().await;
                     });
-                    tracing::info!("Successfully hot-swapped P2P backend with new PoW identity");
+                    tracing::info!("Successfully hot-swapped P2P backend with new peer challenge identity");
                 } else {
                     last_verified_epoch = Some(current_epoch);
                 }
@@ -149,12 +149,12 @@ pub fn start_pow_miner_loop(
 /// Initiates the background Distributed Hash Table (DHT) liveness republisher.
 ///
 /// > [!NOTE]
-/// > Because Kademlia DHT nodes are highly ephemeral (laptops go to sleep, routers reboot), 
-/// > records naturally fall out of the network over time. 
+/// > Because Kademlia DHT nodes are highly ephemeral (laptops go to sleep, routers reboot),
+/// > records naturally fall out of the network over time.
 ///
-/// To guarantee that a user's locally owned `.kin` domain routing payloads remain discoverable, 
-/// this asynchronous worker periodically wakes up, queries the local `kinetic-storage` for all 
-/// owned `NameRecord` datasets, and aggressively pushes `put_record` requests back into the DHT 
+/// To guarantee that a user's locally owned `.kin` domain routing payloads remain discoverable,
+/// this asynchronous worker periodically wakes up, queries the local `kinetic-storage` for all
+/// owned `NameEnvelope` datasets, and aggressively pushes `put_record` requests back into the DHT
 /// to refresh their Time-To-Live (TTL).
 pub fn start_republisher(
     republish_network: kinetic_network::NetworkClient,

@@ -7,7 +7,7 @@ pub async fn handle_atlas_sync(
     let port = config.daemon.api_port;
     let url = format!(
         "http://{}:{}/api/v1/micro/atlas/sync",
-        config.daemon.bind_ip, port
+        config.peer.bind_ip, port
     );
 
     let pb = indicatif::ProgressBar::new_spinner();
@@ -22,7 +22,10 @@ pub async fn handle_atlas_sync(
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+        anyhow::bail!(
+            "{}",
+            crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+        );
     }
 
     println!("✅ Atlas global index sync triggered successfully.");

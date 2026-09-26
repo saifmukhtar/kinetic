@@ -27,8 +27,8 @@ pub fn parse_and_format_api_error(
 /// # Errors
 /// Returns an `anyhow::Error` if the token file cannot be read, which likely indicates
 /// Reads the admin API token from the `tokens/admin.token` file.
-pub fn get_api_token() -> anyhow::Result<String> {
-    let path = kinetic_local::config::get_api_tokens_dir().join("admin.token");
+pub fn api_token() -> anyhow::Result<String> {
+    let path = kinetic_local::config::api_tokens_dir().join("admin.token");
     let token = std::fs::read_to_string(&path)
         .with_context(|| format!("Failed to read admin API token from {:?}", path))?;
     Ok(token.trim().to_string())
@@ -42,7 +42,7 @@ pub fn get_api_token() -> anyhow::Result<String> {
 /// Returns an `anyhow::Error` if the token cannot be retrieved, or if the client
 /// builder fails to initialize.
 pub fn build_client(timeout_secs: u64) -> anyhow::Result<Client> {
-    let token = get_api_token()?;
+    let token = api_token()?;
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(
         reqwest::header::AUTHORIZATION,

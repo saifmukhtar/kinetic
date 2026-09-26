@@ -9,13 +9,13 @@ use kinetic_core::types::NrsZoneExt;
 /// > 1. **Cleartext HTTP**: Sends a standard `GET http://example.kin/` payload.
 /// > 2. **HTTPS CONNECT**: Sends an HTTP `CONNECT example.kin:443` request to establish a raw TCP tunnel for TLS.
 ///
-/// This function acts as the traffic cop. 
-/// If it receives a `CONNECT` request, it intercepts it via `tokio::spawn`, generates a forged SSL 
-/// certificate using the local Root CA, performs the TLS handshake locally, and then recursively 
+/// This function acts as the traffic cop.
+/// If it receives a `CONNECT` request, it intercepts it via `tokio::spawn`, generates a forged SSL
+/// certificate using the local Root CA, performs the TLS handshake locally, and then recursively
 /// feeds the decrypted inner HTTP request back into this exact same router.
 ///
-/// If it receives a standard HTTP `GET/POST` request, it inspects the `Host` header, queries the 
-/// Kademlia DHT for the `NameRecord`, and forwards the traffic to the resolved Web2 CNAME, IPFS hash, 
+/// If it receives a standard HTTP `GET/POST` request, it inspects the `Host` header, queries the
+/// Kademlia DHT for the `NameEnvelope`, and forwards the traffic to the resolved Web2 CNAME, IPFS hash,
 /// or Libp2p `PeerId`.
 pub async fn handle_proxy_request(
     req: Request<Incoming>,
@@ -189,16 +189,16 @@ pub async fn forward_to_backend_direct(
         };
 
         // The DHT stores the full Reveal JSON (set by api.rs via serde_json::to_vec(&reveal)).
-        // We must deserialize it and extract reveal.payload — the same pattern the DNS handler uses.
+        // We must deserialize it and extract reveal.embedded_nrs — the same pattern the DNS handler uses.
         let record =
-            serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload).map_err(|e| {
-                let err = super::ProxyError::NameRecordDeserializationFailed(
+            serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&payload).map_err(|e| {
+                let err = super::ProxyError::NameEnvelopeDeserializationFailed(
                     apex_name.to_string(),
                     e.to_string(),
                 );
                 tracing::warn!(error_code = err.code(), "{}", err);
                 ProxyError::InvalidPayload(
-                    "Failed to deserialize NameRecord JSON from DHT".to_string(),
+                    "Failed to deserialize NameEnvelope JSON from DHT".to_string(),
                 )
             })?;
 
@@ -209,11 +209,11 @@ pub async fn forward_to_backend_direct(
             let err = super::ProxyError::SignatureVerificationFailed(format!("{:?}", e));
             tracing::warn!(error_code = err.code(), "{}", err);
             return Err(ProxyError::SecurityViolation(
-                "NameRecord signature verification failed (Spoofed DHT response)".to_string(),
+                "NameEnvelope signature verification failed (Spoofed DHT response)".to_string(),
             ));
         }
 
-        let zone = match kinetic_core::types::NrsZone::parse_payload(record.payload()) {
+        let zone = match kinetic_core::types::NrsZone::parse_payload(record.embedded_nrs()) {
             Ok(z) => z,
             Err(e) => {
                 let err = super::ProxyError::InvalidNrsZonePayload(e.to_string());
@@ -256,26 +256,26 @@ pub async fn forward_to_backend_direct(
         for record in records {
             tracing::info!("Proxy considering record: {:?}", record);
             match record {
-                kinetic_core::types::NrsRecord::A(ip) => {
+                kinetic_core::types::NrsEntry::A(ip) => {
                     target_str = ip.to_string();
                     break;
                 }
-                kinetic_core::types::NrsRecord::AAAA(ip) => {
+                kinetic_core::types::NrsEntry::AAAA(ip) => {
                     target_str = ip.to_string();
                     break;
                 }
-                kinetic_core::types::NrsRecord::TXT(_) => {
+                kinetic_core::types::NrsEntry::TXT(_) => {
                     continue; // Do NOT parse TXT records as IPs for proxying
                 }
-                kinetic_core::types::NrsRecord::PeerId(peer_id) => {
+                kinetic_core::types::NrsEntry::PeerId(peer_id) => {
                     target_str = peer_id.clone();
                     break;
                 }
-                kinetic_core::types::NrsRecord::CNAME(target) => {
+                kinetic_core::types::NrsEntry::CNAME(target) => {
                     cname_target = Some(target.clone());
                     break;
                 }
-                kinetic_core::types::NrsRecord::IPFS(cid) => {
+                kinetic_core::types::NrsEntry::IPFS(cid) => {
                     target_str = format!("ipfs://{}", cid);
                     break;
                 }

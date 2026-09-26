@@ -11,7 +11,7 @@ use hyper::{Request, Response, body::Incoming};
 /// via `rustls`, which introduces massive risk of critical Man-in-the-Middle (MitM) vulnerabilities.
 ///
 /// **Alternative:** Developers building real-time applications on the `.kin` network should avoid
-/// centralized WebSockets and instead utilize native Web3 architectures, such as P2P routing,
+/// centralized WebSockets and instead utilize native peer-to-peer architectures, such as P2P routing,
 /// Libp2p streams, or WebRTC.
 pub async fn forward_to_ip(
     req: Request<Incoming>,

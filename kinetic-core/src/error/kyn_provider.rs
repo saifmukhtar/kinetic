@@ -90,7 +90,9 @@ pub enum KynProviderError {
     #[error("DEV MODE: Returning mock network kyn because cache is empty.")]
     DevModeMockKyn,
     /// Registration is disabled because the KYN Provider could not be reached.
-    #[error("P2P swarm and proxy will start — registration disabled until KYN Provider is reachable")]
+    #[error(
+        "P2P swarm and proxy will start — registration disabled until KYN Provider is reachable"
+    )]
     RegistrationDisabled,
     /// Live fetch failed, gracefully falling back to local cached kyn.
     #[error("Could not fetch live network kyn, falling back to cached value for staleness check")]

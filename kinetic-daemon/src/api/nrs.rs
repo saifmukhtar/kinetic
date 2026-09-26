@@ -1,8 +1,8 @@
 //! HTTP REST API handlers for the Kinetic Name Registration System (NRS).
 //!
 //! ## Layer 8 Architecture: The Registration Gateway
-//! This file is the primary ingress point for the local Desktop UI to interact with the global 
-//! Kademlia DHT. It handles the highly complex multi-stage cryptographic flow of domain 
+//! This file is the primary ingress point for the local Desktop UI to interact with the global
+//! Kademlia DHT. It handles the highly complex multi-stage cryptographic flow of domain
 //! registration (Commit, Reveal, Verify).
 //!
 //! ### The Publishing Flow
@@ -32,41 +32,41 @@ use kinetic_verify::signatures::VerifySignature;
 /// Resolves the canonical current network time epoch (KYN) with high availability.
 ///
 /// > [!NOTE]
-/// > Because domain registration is bound to the current time epoch to prevent spam, 
+/// > Because domain registration is bound to the current time epoch to prevent spam,
 /// > we must have absolute certainty of the network time.
 ///
 /// This function executes a cascading fallback strategy:
 /// 1. Tries to query the live Libp2p swarm for the absolute freshest time.
 /// 2. If the swarm is offline, falls back to the local `kinetic-storage` Time Oracle cache.
 /// 3. If the cache is empty (genesis boot), it estimates the time mathematically using the local clock.
-async fn get_safe_current_kyn(state: &ApiState) -> kinetic_kyn::types::Kyn {
-    if let Ok(kyn) = state.network.get_current_kyn().await
+async fn safe_current_kyn(state: &ApiState) -> kinetic_kyn::types::Kyn {
+    if let Ok(kyn) = state.network.current_kyn().await
         && kyn > 0
     {
         return kinetic_kyn::types::Kyn(kyn);
     }
 
     let kyn_provider =
-        kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
+        kinetic_network::client::beacon::BeaconProvider::new(Some(state.storage.clone()));
     match kyn_provider.load_cached() {
-        Ok(kyn) if kyn.kyn > 0 => kinetic_kyn::types::Kyn(kyn.kyn),
-        _ => kinetic_kyn::types::Kyn::now_local(),
+        Ok(kyn) if kyn.kyn() > 0 => kinetic_kyn::types::Kyn(kyn.kyn()),
+        _ => kinetic_local::time::now_local(kinetic_core::constants::BEACON_GENESIS),
     }
 }
 
 /// Injects a fully verified `Reveal` payload into the global Kademlia DHT.
 ///
 /// > [!IMPORTANT]
-/// > This is the final step in the NRS registration flow. A `Reveal` is only accepted if 
+/// > This is the final step in the NRS registration flow. A `Reveal` is only accepted if
 /// > the corresponding `Commit` has successfully matured (>10 epochs) on the network.
 ///
 /// ### Execution Flow
 /// 1. **Classification:** Determines if the domain is Standard (requires PoW) or Premium.
-/// 2. **Staleness Enforcement:** Rejects any Standard `Reveal` if its attached Time Oracle 
+/// 2. **Staleness Enforcement:** Rejects any Standard `Reveal` if its attached Time Oracle
 ///    epoch is older than the `RESQUARING_EPOCH_KYNS` threshold.
 /// 3. **Validation:** Executes the `verify()` trait method to validate the Ed25519 signatures.
 /// 4. **Persistence:** Saves the `Reveal` locally to ensure it survives reboots.
-/// 5. **Network Injection:** Sends the payload to the asynchronous `NetworkClient` to be 
+/// 5. **Network Injection:** Sends the payload to the asynchronous `NetworkClient` to be
 ///    routed to the mathematically closest DHT peers.
 ///
 /// # Errors
@@ -96,7 +96,7 @@ pub async fn handle_publish_record(
 
     let mut name_record = req.record;
 
-    let kinetic_core::types::NameRecord::Standard(ref mut reveal) = name_record;
+    let kinetic_core::types::NameEnvelope::Standard(ref mut reveal) = name_record;
     reveal.name = fqdn.clone();
     if let Err(e) = reveal.validate() {
         return Err(crate::api::error::AppError::from(
@@ -104,23 +104,24 @@ pub async fn handle_publish_record(
         ));
     }
     // than RESQUARING_EPOCH_KYNS using the safe cached network Kyn.
-    let current_kyn = get_safe_current_kyn(&state).await.0;
+    let current_kyn = safe_current_kyn(&state).await.0;
 
     if current_kyn > 0 {
-        if reveal.kyn.0 > current_kyn {
+        if reveal.kyn.as_u64() > current_kyn {
             return Err(crate::api::error::AppError::from(
                 kinetic_core::error::RestApiError::BadRequest(format!(
                     "Reveal rejected: VDF kyn {} is in the future (current kyn: {}).",
-                    reveal.kyn.0, current_kyn
+                    reveal.kyn.as_u64(),
+                    current_kyn
                 )),
             ));
         }
-        let age = current_kyn - reveal.kyn.0;
+        let age = current_kyn - reveal.kyn.as_u64();
         if age > kinetic_core::types::RESQUARING_EPOCH_KYNS {
             return Err(crate::api::error::AppError::from(
                 kinetic_core::error::RestApiError::BadRequest(format!(
                     "Reveal rejected: VDF kyn {} is {} kyns old (max allowed: {}). Please re-compute a fresh VDF proof.",
-                    reveal.kyn.0,
+                    reveal.kyn.as_u64(),
                     age,
                     kinetic_core::types::RESQUARING_EPOCH_KYNS
                 )),
@@ -322,13 +323,13 @@ pub async fn handle_publish_commit(
 pub async fn handle_resolve_name(
     State(state): State<ApiState>,
     Path(name): Path<String>,
-) -> Result<Json<kinetic_core::types::NameRecord>, crate::api::error::AppError> {
+) -> Result<Json<kinetic_core::types::NameEnvelope>, crate::api::error::AppError> {
     let fqdn = kinetic_core::types::normalize_name(&name);
 
     if kinetic_core::types::names::is_reserved_name(&fqdn) {
         let apex = kinetic_core::types::names::extract_apex_name(&fqdn);
         let apex_no_tld = apex.trim_end_matches(kinetic_core::constants::NSP_SUFFIX);
-        let local_zone_file = kinetic_local::config::get_zones_dir()
+        let local_zone_file = kinetic_local::config::zones_dir()
             .join("local")
             .join(format!("{}.json", apex_no_tld));
 
@@ -343,7 +344,7 @@ pub async fn handle_resolve_name(
                 "timestamp": 0
             });
             if let Ok(record) =
-                serde_json::from_value::<kinetic_core::types::NameRecord>(dummy_json)
+                serde_json::from_value::<kinetic_core::types::NameEnvelope>(dummy_json)
             {
                 return Ok(Json(record));
             }
@@ -358,9 +359,9 @@ pub async fn handle_resolve_name(
 
     let record = match state.network.resolve_redundant_payload(&fqdn).await {
         Ok(payload) => {
-            let record = serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload)
+            let record = serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&payload)
                 .map_err(|_| kinetic_core::error::ResolutionError::Internal {
-                    message: "Invalid NameRecord payload on DHT".to_string(),
+                    message: "Invalid NameEnvelope payload on DHT".to_string(),
                     source: None,
                 })?;
 
@@ -395,7 +396,7 @@ pub async fn handle_resolve_name(
 
             match record_bytes {
                 Some(bytes) => {
-                    serde_json::from_slice::<kinetic_core::types::NameRecord>(&bytes).map_err(
+                    serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&bytes).map_err(
                         |e| {
                             tracing::error!(
                                 error = ?kinetic_core::error::StorageError::DeserializationFailed(e.to_string()),
@@ -441,14 +442,14 @@ pub struct QuorumResponse {
 pub async fn handle_verify_quorum(
     State(state): State<ApiState>,
     Path(name): Path<String>,
-    Json(record): Json<kinetic_core::types::NameRecord>,
+    Json(record): Json<kinetic_core::types::NameEnvelope>,
 ) -> Result<Json<QuorumResponse>, crate::api::error::AppError> {
     let fqdn = kinetic_core::types::normalize_name(&name);
     kinetic_core::types::is_valid_apex_name(&fqdn)?;
 
     let payload = serde_json::to_vec(&record).map_err(|_| {
         crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(
-            "Invalid NameRecord payload".to_string(),
+            "Invalid NameEnvelope payload".to_string(),
         ))
     })?;
 
@@ -474,7 +475,7 @@ pub struct ReservedNameStatus {
 pub async fn handle_get_reserved_names()
 -> Result<Json<Vec<ReservedNameStatus>>, crate::api::error::AppError> {
     let statuses = tokio::task::spawn_blocking(|| {
-        let local_dir = kinetic_local::config::get_zones_dir().join("local");
+        let local_dir = kinetic_local::config::zones_dir().join("local");
         let mut statuses = Vec::new();
         for r in kinetic_core::types::RESERVED_NAMES {
             let path = local_dir.join(format!("{}.json", r));
@@ -506,7 +507,7 @@ pub async fn handle_get_zone(
     let fqdn = kinetic_core::types::normalize_name(&name);
     kinetic_core::types::is_valid_apex_name(&fqdn)?;
 
-    let path = kinetic_local::config::get_zones_dir()
+    let path = kinetic_local::config::zones_dir()
         .join("config")
         .join(format!("{}.json", fqdn));
     match tokio::fs::read_to_string(&path).await {
@@ -543,7 +544,7 @@ pub async fn handle_post_zone(
     let fqdn = kinetic_core::types::normalize_name(&name);
     kinetic_core::types::is_valid_apex_name(&fqdn)?;
 
-    let zones_dir = kinetic_local::config::get_zones_dir().join("config");
+    let zones_dir = kinetic_local::config::zones_dir().join("config");
     let path = zones_dir.join(format!("{}.json", fqdn));
 
     let content = serde_json::to_string_pretty(&zone).map_err(|e| {
@@ -589,7 +590,7 @@ pub async fn handle_publish_zone(
     kinetic_core::types::is_valid_apex_name(&fqdn)?;
 
     // 1. Read the current zone file asynchronously
-    let zone_path = kinetic_local::config::get_zones_dir()
+    let zone_path = kinetic_local::config::zones_dir()
         .join("config")
         .join(format!("{}.json", fqdn));
     let content = match tokio::fs::read_to_string(&zone_path).await {
@@ -622,7 +623,7 @@ pub async fn handle_publish_zone(
             )
         })?;
 
-    let mut record: kinetic_core::types::NameRecord = serde_json::from_slice(&reveal_bytes)
+    let mut record: kinetic_core::types::NameEnvelope = serde_json::from_slice(&reveal_bytes)
         .map_err(|_| {
             crate::api::error::AppError::from(
                 kinetic_core::error::StorageError::DeserializationFailed(
@@ -632,7 +633,7 @@ pub async fn handle_publish_zone(
         })?;
 
     // 3. Load the daemon keypair and re-sign with the updated payload
-    let identity_path = kinetic_local::config::get_base_dir().join("identity.key");
+    let identity_path = kinetic_local::config::base_dir().join("identity.key");
     let keypair =
         tokio::task::spawn_blocking(move || kinetic_local::identity::load_keypair(&identity_path))
             .await
@@ -659,8 +660,8 @@ pub async fn handle_publish_zone(
         crate::api::error::AppError::from(err)
     })?;
 
-    let kinetic_core::types::NameRecord::Standard(r) = &mut record;
-    r.payload = payload;
+    let kinetic_core::types::NameEnvelope::Standard(r) = &mut record;
+    r.embedded_nrs = payload;
     let signable = r.signable_bytes(kinetic_core::constants::NETWORK_SALT);
     r.identity_signature = keypair.sign(&signable);
 
@@ -719,7 +720,7 @@ pub async fn handle_post_local_zone(
     let apex = kinetic_core::types::names::extract_apex_name(&fqdn);
     let apex_no_tld = apex.trim_end_matches(kinetic_core::constants::NSP_SUFFIX);
 
-    let local_dir = kinetic_local::config::get_zones_dir().join("local");
+    let local_dir = kinetic_local::config::zones_dir().join("local");
     tokio::fs::create_dir_all(&local_dir).await.map_err(|e| {
         crate::api::error::AppError::from(kinetic_core::error::StorageError::WriteFailed(format!(
             "Failed to create local zones directory: {}",
@@ -768,7 +769,7 @@ pub async fn handle_delete_local_zone(
     let apex = kinetic_core::types::names::extract_apex_name(&fqdn);
     let apex_no_tld = apex.trim_end_matches(kinetic_core::constants::NSP_SUFFIX);
 
-    let path = kinetic_local::config::get_zones_dir()
+    let path = kinetic_local::config::zones_dir()
         .join("local")
         .join(format!("{}.json", apex_no_tld));
 
@@ -801,7 +802,7 @@ pub async fn handle_get_local_zone(
     let apex = kinetic_core::types::names::extract_apex_name(&fqdn);
     let apex_no_tld = apex.trim_end_matches(kinetic_core::constants::NSP_SUFFIX);
 
-    let path = kinetic_local::config::get_zones_dir()
+    let path = kinetic_local::config::zones_dir()
         .join("local")
         .join(format!("{}.json", apex_no_tld));
 
@@ -823,21 +824,21 @@ pub async fn handle_get_local_zone(
 
 /// Request payload for manually broadcasting a Fat NRS Zone update.
 #[derive(serde::Deserialize)]
-pub struct FatZoneRequest {
+pub struct NrsUpdateRequest {
     /// The private key of the delegated hot key, hex encoded.
     pub hot_key_hex: String,
-    /// The master-key authorized delegation proof.
+    /// The identity-key authorized delegation proof.
     pub authorized_manifest: kinetic_core::types::identity::AuthorizedManifest,
     /// The new DNS zone data.
     pub zone: kinetic_core::types::NrsZone,
 }
 
-/// Publishes a Fat NRS NameRecord (Zone Update) using a delegated hot key.
-pub async fn handle_publish_fat_zone(
+/// Publishes a Fat NRS NameEnvelope (Zone Update) using a delegated hot key.
+pub async fn handle_publish_nrs_update(
     axum::extract::Extension(role): axum::extract::Extension<crate::api::Role>,
     axum::extract::State(state): axum::extract::State<crate::api::ApiState>,
     axum::extract::Path(name): axum::extract::Path<String>,
-    axum::Json(req): axum::Json<FatZoneRequest>,
+    axum::Json(req): axum::Json<NrsUpdateRequest>,
 ) -> Result<axum::Json<crate::api::nrs::PublishResponse>, crate::api::error::AppError> {
     if !role.can_nrs() {
         return Err(crate::api::error::AppError::from(
@@ -868,8 +869,8 @@ pub async fn handle_publish_fat_zone(
             e
         )))
     })?;
-    let keypair =
-        kinetic_primitives::kinetic_keypair::IdentityPrivKey::from_slice(&hot_key_bytes).map_err(|e| {
+    let keypair = kinetic_primitives::keypairs::IdentityPrivKey::from_slice(&hot_key_bytes)
+        .map_err(|e| {
             crate::api::error::AppError::from(kinetic_core::error::RestApiError::BadRequest(
                 format!("Invalid ML-DSA keypair: {}", e),
             ))
@@ -893,7 +894,7 @@ pub async fn handle_publish_fat_zone(
             )
         })?;
 
-    let mut record: kinetic_core::types::NameRecord = serde_json::from_slice(&reveal_bytes)
+    let mut record: kinetic_core::types::NameEnvelope = serde_json::from_slice(&reveal_bytes)
         .map_err(|_| {
             crate::api::error::AppError::from(
                 kinetic_core::error::StorageError::DeserializationFailed(
@@ -909,8 +910,8 @@ pub async fn handle_publish_fat_zone(
         crate::api::error::AppError::from(err)
     })?;
 
-    let kinetic_core::types::NameRecord::Standard(reveal) = &mut record;
-    reveal.payload = payload_bytes;
+    let kinetic_core::types::NameEnvelope::Standard(reveal) = &mut record;
+    reveal.embedded_nrs = payload_bytes;
     reveal.authorization = Some(Box::new(req.authorized_manifest));
     let signable = reveal.signable_bytes(kinetic_core::constants::NETWORK_SALT);
     reveal.identity_signature = tokio::task::spawn_blocking(move || keypair.sign(&signable))
@@ -935,6 +936,6 @@ pub async fn handle_publish_fat_zone(
 
     Ok(axum::Json(crate::api::nrs::PublishResponse {
         status: "success".to_string(),
-        message: format!("Fat Zone payload successfully broadcast for {}", fqdn),
+        message: format!("NrsZone payload successfully broadcast for {}", fqdn),
     }))
 }

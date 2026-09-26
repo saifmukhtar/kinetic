@@ -10,7 +10,7 @@ pub enum HeartbeatCommands {
     Trigger {
         /// The name to heartbeat
         name: String,
-        /// Trigger a Fat Zone payload sync instead of a standard zone sync
+        /// Trigger a NrsZone payload sync instead of a standard zone sync
         #[arg(long, default_value_t = false)]
         fat: bool,
     },
@@ -22,7 +22,7 @@ pub async fn handle_heartbeat(
     client: &Client,
 ) -> anyhow::Result<()> {
     let port = config.daemon.api_port;
-    let base_url = format!("http://{}:{}", config.daemon.bind_ip, port);
+    let base_url = format!("http://{}:{}", config.peer.bind_ip, port);
 
     match cmd {
         HeartbeatCommands::List => {
@@ -31,7 +31,10 @@ pub async fn handle_heartbeat(
             if !resp.status().is_success() {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
             let json: serde_json::Value = resp.json().await?;
             println!("{}", serde_json::to_string_pretty(&json)?);
@@ -47,11 +50,14 @@ pub async fn handle_heartbeat(
             if !resp.status().is_success() {
                 let status = resp.status();
                 let text = resp.text().await.unwrap_or_default();
-                anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+                anyhow::bail!(
+                    "{}",
+                    crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+                );
             }
             println!(
                 "Successfully triggered {}heartbeat for '{}'.",
-                if fat { "Fat Zone " } else { "" },
+                if fat { "NrsZone " } else { "" },
                 name
             );
         }

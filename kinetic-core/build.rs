@@ -19,7 +19,7 @@ struct NdcMultipliers {
 }
 
 #[derive(Deserialize)]
-struct ConsensusConfig {
+struct PhysicsConfig {
     minimum_commit_age_kyns: u64,
     ndc_multipliers: NdcMultipliers,
     vdf_discount_min_iterations: u64,
@@ -62,10 +62,10 @@ struct NetworkSection {
 }
 
 #[derive(Deserialize)]
-struct TimeOracleSection {
-    kyn_genesis_time: u64,
-    kyn_period: u64,
-    kinetic_genesis_kyn: u64,
+struct BeaconSection {
+    beacon_genesis: u64,
+
+    kyn_genesis: u64,
     beacon_public_key: String,
     beacon_endpoints: Vec<String>,
 }
@@ -90,10 +90,10 @@ struct AdvancedSection {
 #[derive(Deserialize)]
 struct NetworkConfig {
     network: NetworkSection,
-    time_oracle: TimeOracleSection,
+    beacon: BeaconSection,
     #[serde(alias = "action")]
     action: ActionSection,
-    consensus: ConsensusConfig,
+    physics: PhysicsConfig,
     advanced: AdvancedSection,
 }
 
@@ -203,28 +203,18 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// The minimum number of Drand kyns a Commitment must age before a Reveal is accepted.\npub const CONSENSUS_MINIMUM_COMMIT_AGE_KYNS: u64 = {};\n\n",
-        config.consensus.minimum_commit_age_kyns
+        "/// The minimum number of Drand kyns a Commitment must age before a Reveal is accepted.\npub const PHYSICS_MINIMUM_COMMIT_AGE_KYNS: u64 = {};\n\n",
+        config.physics.minimum_commit_age_kyns
     ));
 
     out.push_str(&format!(
-        "/// Unix timestamp of the time oracle beacon's genesis.\npub const KYN_GENESIS_TIME: u64 = {};\n\n",
-        config.time_oracle.kyn_genesis_time
+        "/// Unix timestamp of the time oracle beacon's genesis.\npub const BEACON_GENESIS: u64 = {};\n\n",
+        config.beacon.beacon_genesis
     ));
 
     out.push_str(&format!(
-        "/// Duration in seconds of each time oracle kyn.\npub const KYN_PERIOD: u64 = {};\n\n",
-        config.time_oracle.kyn_period
-    ));
-
-    out.push_str(&format!(
-        "/// The absolute oracle kyn at which this network officially launched.\n/// Used purely for cosmetic frontend timekeeping (Epoch/Cycle/Kyn).\npub const KINETIC_GENESIS_KYN: u64 = {};\n\n",
-        config.time_oracle.kinetic_genesis_kyn
-    ));
-
-    out.push_str(&format!(
-        "/// The absolute Unix timestamp (in seconds) of the Kinetic network genesis.\npub const KINETIC_GENESIS_TIME: u64 = {};\n\n",
-        config.time_oracle.kyn_genesis_time + (config.time_oracle.kinetic_genesis_kyn * config.time_oracle.kyn_period)
+        "/// The absolute oracle round at which this network officially launched.\n/// Used purely for cosmetic frontend timekeeping (Prism/Facet/Kyn).\npub const KYN_GENESIS: u64 = {};\n\n",
+        config.beacon.kyn_genesis
     ));
 
     // Expose NSP as compile-time env vars so constants.rs can use env!() for
@@ -237,11 +227,11 @@ fn main() {
 
     out.push_str(&format!(
         "/// The public key for the time oracle beacon.\npub const BEACON_PUBLIC_KEY: &str = \"{}\";\n\n",
-        config.time_oracle.beacon_public_key
+        config.beacon.beacon_public_key
     ));
 
     out.push_str("/// The set of time oracle HTTP endpoints tried in order.\npub const BEACON_ENDPOINTS: &[&str] = &[\n");
-    for endpoint in config.time_oracle.beacon_endpoints {
+    for endpoint in config.beacon.beacon_endpoints {
         out.push_str(&format!("    \"{}\",\n", endpoint));
     }
     out.push_str("];\n\n");
@@ -267,52 +257,52 @@ fn main() {
     ));
 
     out.push_str(&format!(
-        "/// Multiplier for NDC length 0 to 1\npub const CONSENSUS_NDC_LEN_0_TO_1: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_0_to_1
+        "/// Multiplier for NDC length 0 to 1\npub const PHYSICS_NDC_LEN_0_TO_1: u64 = {};\n",
+        config.physics.ndc_multipliers.len_0_to_1
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 2\npub const CONSENSUS_NDC_LEN_2: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_2
+        "/// Multiplier for NDC length 2\npub const PHYSICS_NDC_LEN_2: u64 = {};\n",
+        config.physics.ndc_multipliers.len_2
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 3\npub const CONSENSUS_NDC_LEN_3: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_3
+        "/// Multiplier for NDC length 3\npub const PHYSICS_NDC_LEN_3: u64 = {};\n",
+        config.physics.ndc_multipliers.len_3
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 4\npub const CONSENSUS_NDC_LEN_4: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_4
+        "/// Multiplier for NDC length 4\npub const PHYSICS_NDC_LEN_4: u64 = {};\n",
+        config.physics.ndc_multipliers.len_4
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 5\npub const CONSENSUS_NDC_LEN_5: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_5
+        "/// Multiplier for NDC length 5\npub const PHYSICS_NDC_LEN_5: u64 = {};\n",
+        config.physics.ndc_multipliers.len_5
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 6\npub const CONSENSUS_NDC_LEN_6: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_6
+        "/// Multiplier for NDC length 6\npub const PHYSICS_NDC_LEN_6: u64 = {};\n",
+        config.physics.ndc_multipliers.len_6
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 7\npub const CONSENSUS_NDC_LEN_7: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_7
+        "/// Multiplier for NDC length 7\npub const PHYSICS_NDC_LEN_7: u64 = {};\n",
+        config.physics.ndc_multipliers.len_7
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 8 to 10\npub const CONSENSUS_NDC_LEN_8_TO_10: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_8_to_10
+        "/// Multiplier for NDC length 8 to 10\npub const PHYSICS_NDC_LEN_8_TO_10: u64 = {};\n",
+        config.physics.ndc_multipliers.len_8_to_10
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 11 to 17\npub const CONSENSUS_NDC_LEN_11_TO_17: u64 = {};\n",
-        config.consensus.ndc_multipliers.len_11_to_17
+        "/// Multiplier for NDC length 11 to 17\npub const PHYSICS_NDC_LEN_11_TO_17: u64 = {};\n",
+        config.physics.ndc_multipliers.len_11_to_17
     ));
     out.push_str(&format!(
-        "/// Multiplier for NDC length 18 to 20\npub const CONSENSUS_NDC_LEN_18_TO_20: u64 = {};\n\n", config.consensus.ndc_multipliers.len_18_to_20
+        "/// Multiplier for NDC length 18 to 20\npub const PHYSICS_NDC_LEN_18_TO_20: u64 = {};\n\n", config.physics.ndc_multipliers.len_18_to_20
     ));
 
-    out.push_str(&format!("/// Minimum iterations for VDF discount\npub const CONSENSUS_VDF_DISCOUNT_MIN_ITERATIONS: u64 = {};\n", config.consensus.vdf_discount_min_iterations));
-    out.push_str(&format!("/// Discount percentage for VDF iterations\npub const CONSENSUS_VDF_DISCOUNT_PERCENTAGE: u64 = {};\n", config.consensus.vdf_discount_percentage));
+    out.push_str(&format!("/// Minimum iterations for VDF discount\npub const PHYSICS_VDF_DISCOUNT_MIN_ITERATIONS: u64 = {};\n", config.physics.vdf_discount_min_iterations));
+    out.push_str(&format!("/// Discount percentage for VDF iterations\npub const PHYSICS_VDF_DISCOUNT_PERCENTAGE: u64 = {};\n", config.physics.vdf_discount_percentage));
     out.push_str(&format!(
-        "/// Maximum iterations for VDF\npub const CONSENSUS_VDF_MAX_ITERATIONS: u64 = {};\n",
-        config.consensus.vdf_max_iterations
+        "/// Maximum iterations for VDF\npub const PHYSICS_VDF_MAX_ITERATIONS: u64 = {};\n",
+        config.physics.vdf_max_iterations
     ));
-    out.push_str(&format!("/// Maximum bytes for a VDF proof\npub const CONSENSUS_VDF_MAX_PROOF_BYTES: usize = {};\n\n", config.consensus.vdf_max_proof_bytes));
+    out.push_str(&format!("/// Maximum bytes for a VDF proof\npub const PHYSICS_VDF_MAX_PROOF_BYTES: usize = {};\n\n", config.physics.vdf_max_proof_bytes));
 
     out.push_str(&format!(
         "/// Maximum P2P packet size\npub const LIMITS_P2P_MAX_PACKET_SIZE: usize = {};\n",
@@ -370,19 +360,19 @@ fn main() {
     // Compute the PROD salt (ROOT_KEY + BEACON_KEY + GENESIS_TIME)
     let mut hasher = Sha256::new();
     hasher.update(prod_key.as_bytes());
-    hasher.update(config.time_oracle.beacon_public_key.as_bytes());
-    hasher.update(config.time_oracle.kyn_genesis_time.to_be_bytes());
+    hasher.update(config.beacon.beacon_public_key.as_bytes());
+    hasher.update(config.beacon.beacon_genesis.to_be_bytes());
     let prod_salt = hasher.finalize();
 
     // Compute the TEST salt (ROOT_KEY + BEACON_KEY + GENESIS_TIME)
     let mut hasher_test = Sha256::new();
     hasher_test.update(test_key.as_bytes());
-    hasher_test.update(config.time_oracle.beacon_public_key.as_bytes());
-    hasher_test.update(config.time_oracle.kyn_genesis_time.to_be_bytes());
+    hasher_test.update(config.beacon.beacon_public_key.as_bytes());
+    hasher_test.update(config.beacon.beacon_genesis.to_be_bytes());
     let test_salt = hasher_test.finalize();
 
     out.push_str(&format!(
-        "/// The mathematical network salt for production, derived from ROOT_PUBLIC_KEY + BEACON_PUBLIC_KEY + KYN_GENESIS_TIME.\n\
+        "/// The mathematical network salt for production, derived from ROOT_PUBLIC_KEY + BEACON_PUBLIC_KEY + BEACON_GENESIS.\n\
          pub const NETWORK_SALT_PROD: [u8; 32] = {:?};\n\n",
         prod_salt.as_slice()
     ));
@@ -402,7 +392,7 @@ fn main() {
     );
 
     out.push_str(&format!(
-        "/// The mathematical network salt for testing, derived from ROOT_PUBLIC_KEY + BEACON_PUBLIC_KEY + KYN_GENESIS_TIME.\n\
+        "/// The mathematical network salt for testing, derived from ROOT_PUBLIC_KEY + BEACON_PUBLIC_KEY + BEACON_GENESIS.\n\
          pub const NETWORK_SALT_TEST: [u8; 32] = {:?};\n\n",
         test_salt.as_slice()
     ));

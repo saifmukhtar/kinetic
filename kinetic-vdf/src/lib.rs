@@ -6,7 +6,7 @@
 //! ## Layer 6 Architecture: Isolated Infrastructure
 //! This crate operates strictly as an isolated infrastructure implementor. It does not
 //! know what the Kinetic network is, it does not perform network I/O, and it does not
-//! interact with local storage. It exclusively consumes the abstract `VdfEngine` trait 
+//! interact with local storage. It exclusively consumes the abstract `VdfEngine` trait
 //! from `kinetic-core` and executes the heavy RSA cryptographic math to satisfy it.
 //!
 //! ## Security & Consensus Guarantees
@@ -235,7 +235,7 @@ mod tests {
     fn test_blockwise_prover_and_verifier() {
         let engine = RsaVdfEngine::new();
 
-        let hash = kinetic_primitives::sha256_hash(b"kinetic-blockwise-test");
+        let hash = kinetic_primitives::sha256(b"kinetic-blockwise-test");
         let challenge = Commitment { hash };
 
         let iterations = 10_000;
@@ -429,7 +429,7 @@ mod tests {
 
         assert_eq!(
             proof_a.proof_bytes, proof_b.proof_bytes,
-            "CONSENSUS FLAW: Prover produced different proof bytes for identical inputs! Network will split."
+            "PHYSICS FLAW: Prover produced different proof bytes for identical inputs! Network will split."
         );
     }
 

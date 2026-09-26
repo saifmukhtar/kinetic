@@ -20,7 +20,7 @@ To fully understand this crate, we recommend reading it in the following order:
 
 ### Prerequisites
 Before reading this crate, you must understand:
-* **kinetic-types:** You must be familiar with the foundational network payloads (`NrsRecord`, `Commitment`, `VdfProof`) and the Network Actions which form the raw data operated on by this core kernel.
+* **kinetic-types:** You must be familiar with the foundational network payloads (`NrsEntry`, `Commitment`, `VdfProof`) and the Network Actions which form the raw data operated on by this core kernel.
 
 ### File Traversal (Leaf-First)
 Do not read this crate top-to-bottom. Read it in this order:

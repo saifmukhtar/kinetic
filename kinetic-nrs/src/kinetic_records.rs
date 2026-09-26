@@ -105,7 +105,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                             Ok::<_, kinetic_core::error::NrsError>(None)
                         } else {
                             if !is_reserved_clone {
-                                match serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload) {
+                                match serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&payload) {
                                     Ok(name_record) => {
                                         if name_record.verify_signature(kinetic_core::constants::NETWORK_SALT).is_err() {
                                             warn!(
@@ -118,7 +118,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                     Err(e) => {
                                         warn!(
                                             error = %e,
-                                            "Invalid NameRecord format for {apex_name_clone}"
+                                            "Invalid NameEnvelope format for {apex_name_clone}"
                                         );
                                         return Err(kinetic_core::error::NrsError::ParseError(e));
                                     }
@@ -147,13 +147,13 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
         Ok(Some(payload_bytes)) => {
             info!("Successfully resolved .kin from Cache/DHT");
 
-            match serde_json::from_slice::<kinetic_core::types::NameRecord>(&payload_bytes) {
+            match serde_json::from_slice::<kinetic_core::types::NameEnvelope>(&payload_bytes) {
                 Ok(name_record) => {
-                    match kinetic_core::types::NrsZone::parse_payload(name_record.payload()) {
+                    match kinetic_core::types::NrsZone::parse_payload(name_record.embedded_nrs()) {
                         Ok(zone) => {
                             if let Some(records) = zone.records.get("@") {
                                 for record in records {
-                                    if let kinetic_core::types::NrsRecord::KID(did) = record {
+                                    if let kinetic_core::types::NrsEntry::KID(did) = record {
                                         info!(
                                             "E2E Auth: Name specifies KID: {}. Fetching from daemon...",
                                             did
@@ -280,19 +280,19 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                 // We filter out the KID (and anything else) for Web2 OS resolvers.
                                 let has_cname = records
                                     .iter()
-                                    .any(|r| matches!(r, kinetic_core::types::NrsRecord::CNAME(_)));
+                                    .any(|r| matches!(r, kinetic_core::types::NrsEntry::CNAME(_)));
 
                                 for record in records {
                                     if has_cname
                                         && !matches!(
                                             record,
-                                            kinetic_core::types::NrsRecord::CNAME(_)
+                                            kinetic_core::types::NrsEntry::CNAME(_)
                                         )
                                     {
                                         continue; // Only return CNAME to legacy Web2 resolvers
                                     }
                                     match record {
-                                        kinetic_core::types::NrsRecord::A(ip)
+                                        kinetic_core::types::NrsEntry::A(ip)
                                             if q_type == hickory_proto::rr::RecordType::A =>
                                         {
                                             if let Err(e) = kinetic_core::net::validate_ssrf_safe(
@@ -314,7 +314,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 RData::A((*ip).into()),
                                             ));
                                         }
-                                        kinetic_core::types::NrsRecord::AAAA(ip)
+                                        kinetic_core::types::NrsEntry::AAAA(ip)
                                             if q_type == hickory_proto::rr::RecordType::AAAA =>
                                         {
                                             if let Err(e) = kinetic_core::net::validate_ssrf_safe(
@@ -336,7 +336,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 RData::AAAA((*ip).into()),
                                             ));
                                         }
-                                        kinetic_core::types::NrsRecord::CNAME(target) => {
+                                        kinetic_core::types::NrsEntry::CNAME(target) => {
                                             // By DNS RFC, a CNAME should be returned regardless of what the user asked for (A/AAAA/TXT).
                                             // The OS resolver will receive the CNAME and recursively follow it.
 
@@ -387,7 +387,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 ));
                                             }
                                         }
-                                        kinetic_core::types::NrsRecord::TXT(txt)
+                                        kinetic_core::types::NrsEntry::TXT(txt)
                                             if q_type == hickory_proto::rr::RecordType::TXT
                                                 || q_type == hickory_proto::rr::RecordType::ANY =>
                                         {
@@ -399,7 +399,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 )),
                                             ));
                                         }
-                                        kinetic_core::types::NrsRecord::PeerId(pid)
+                                        kinetic_core::types::NrsEntry::PeerId(pid)
                                             if q_type == hickory_proto::rr::RecordType::TXT
                                                 || q_type == hickory_proto::rr::RecordType::ANY =>
                                         {
@@ -411,7 +411,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 )),
                                             ));
                                         }
-                                        kinetic_core::types::NrsRecord::KID(kid)
+                                        kinetic_core::types::NrsEntry::KID(kid)
                                             if q_type == hickory_proto::rr::RecordType::TXT
                                                 || q_type == hickory_proto::rr::RecordType::ANY =>
                                         {
@@ -423,7 +423,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                                                 )),
                                             ));
                                         }
-                                        kinetic_core::types::NrsRecord::IPFS(cid)
+                                        kinetic_core::types::NrsEntry::IPFS(cid)
                                             if q_type == hickory_proto::rr::RecordType::TXT
                                                 || q_type == hickory_proto::rr::RecordType::ANY =>
                                         {
@@ -472,7 +472,7 @@ pub async fn resolve_kinetic<R: ResponseHandler>(
                 }
                 Err(e) => {
                     let err = kinetic_core::error::ResolutionError::Internal {
-                        message: format!("Payload was not a valid NameRecord: {}", e),
+                        message: format!("Payload was not a valid NameEnvelope: {}", e),
                         source: None,
                     };
                     warn!(error_code = err.code(), "{}", err);

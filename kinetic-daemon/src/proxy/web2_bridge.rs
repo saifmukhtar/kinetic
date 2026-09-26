@@ -149,7 +149,7 @@ pub(crate) fn clean_target_domain(target: &str) -> &str {
     target.split(':').next().unwrap_or(target)
 }
 
-/// Rewrites a Web2 Location redirect header back to the Web3 .kin name.
+/// Rewrites a Web2 Location redirect header back to the Kinetic .kin name.
 pub(crate) fn rewrite_location_header(
     loc_str: &str,
     target_domain_clean: &str,
@@ -176,7 +176,7 @@ mod tests {
 
     #[test]
     fn test_rewrite_location_header() {
-        // Standard Web2 to Web3 rewrite
+        // Standard Web2 to Kinetic rewrite
         assert_eq!(
             rewrite_location_header("https://saif.github.io/about", "saif.github.io", "saif.kin")
                 .unwrap(),

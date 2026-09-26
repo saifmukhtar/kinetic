@@ -1,19 +1,19 @@
 //! Utility data structures, async task spawners, and the XOR distance tie-breaker conflict resolver.
 //!
 //! ## Layer 7 Architecture: The Consensus Tie-Breaker
-//! While `kinetic-network/src/store/verification.rs` handles the hard mathematical rejection 
-//! of invalid records, `utils.rs` handles the soft *consensus resolution* when multiple valid 
+//! While `kinetic-network/src/store/verification.rs` handles the hard mathematical rejection
+//! of invalid records, `utils.rs` handles the soft *consensus resolution* when multiple valid
 //! records compete for the same namespace simultaneously.
 //!
 //! ## The XOR Collision Rule
-//! Because Kinetic is a decentralized network without a global ledger, two users might 
-//! submit mathematically valid Reveals for the exact same name (e.g., `alice.kin`) at the 
+//! Because Kinetic is a decentralized network without a global ledger, two users might
+//! submit mathematically valid Reveals for the exact same name (e.g., `alice.kin`) at the
 //! exact same KYN Provider time, with the exact same VDF iteration count.
-//! 
-//! When this extremely rare collision occurs, the `resolve_conflict()` utility here acts 
-//! as the final arbiter. It calculates the XOR distance between the Domain Name Hash and 
-//! the Ed25519 Public Key of each competitor. The key that produces the closest XOR 
-//! numerical distance wins the namespace. This guarantees determinism across all routing 
+//!
+//! When this extremely rare collision occurs, the `resolve_conflict()` utility here acts
+//! as the final arbiter. It calculates the XOR distance between the Domain Name Hash and
+//! the Ed25519 Public Key of each competitor. The key that produces the closest XOR
+//! numerical distance wins the namespace. This guarantees determinism across all routing
 //! nodes without requiring communication.
 use kinetic_core::error::{NetworkClientError, ResolutionError};
 use kinetic_core::types::RevealExt;
@@ -73,10 +73,10 @@ where
 
 pub(crate) fn is_routable_multiaddr(
     addr: &libp2p::Multiaddr,
-    disable_pow: bool,
+    disable_challenge: bool,
     allow_dns: bool,
 ) -> bool {
-    if kinetic_core::config::is_dev_mode() || disable_pow {
+    if kinetic_core::config::is_dev_mode() || disable_challenge {
         return true;
     }
 
@@ -124,14 +124,14 @@ impl super::core::NetworkEventLoop {
     pub fn xor_tie_breaker(
         query_name: &str,
         payloads: Vec<Vec<u8>>,
-        current_kyn: u64,
+        current_kyn: kinetic_kyn::types::CurrentKyn,
     ) -> Option<Vec<u8>> {
         if payloads.is_empty() {
             return None;
         }
 
         let mut kyn_bytes = [0u8; 32];
-        kyn_bytes[..8].copy_from_slice(&current_kyn.to_be_bytes());
+        kyn_bytes[..8].copy_from_slice(&current_kyn.as_u64().to_be_bytes());
 
         // Deduplicate payloads in-place
         let mut unique_payloads = payloads;
@@ -142,7 +142,7 @@ impl super::core::NetworkEventLoop {
         enum ParsedPayload {
             Kid(kinetic_kid::Document),
             Reveal(kinetic_core::types::Reveal),
-            HostRouting(kinetic_core::types::HostRoutingRecord),
+            HostRouting(kinetic_core::types::HostRoute),
         }
 
         let mut parsed = Vec::new();
@@ -158,7 +158,7 @@ impl super::core::NetworkEventLoop {
                     parsed.push((p, ParsedPayload::Kid(doc)));
                 }
             } else if let Ok(host_route) =
-                serde_json::from_slice::<kinetic_core::types::HostRoutingRecord>(&p)
+                serde_json::from_slice::<kinetic_core::types::HostRoute>(&p)
             {
                 if query_name == format!("routing:{}", host_route.host_id) {
                     is_host_routing = true;
@@ -173,10 +173,9 @@ impl super::core::NetworkEventLoop {
         }
 
         if is_kid {
-            let current_time = kinetic_kyn::types::Kyn(current_kyn).to_utime(
-                kinetic_core::constants::KYN_GENESIS_TIME,
-                kinetic_core::constants::KYN_PERIOD,
-            ).0;
+            let current_time = kinetic_kyn::types::Kyn(current_kyn.as_u64())
+                .to_ukyn(kinetic_core::constants::BEACON_GENESIS)
+                .0;
 
             parsed
                 .into_iter()
@@ -210,13 +209,13 @@ impl super::core::NetworkEventLoop {
                     if let ParsedPayload::HostRouting(record) = parsed_payload {
                         if crate::store::verification::verify_host_routing_record(
                             &record,
-                            kinetic_kyn::types::Kyn(current_kyn),
+                            *current_kyn,
                         )
                         .is_err()
                         {
                             return None;
                         }
-                        Some((p, u64::MAX - record.kyn.0)) // Sort by newest kyn
+                        Some((p, u64::MAX - record.kyn.as_u64())) // Sort by newest kyn
                     } else {
                         None
                     }
@@ -283,7 +282,11 @@ impl super::core::NetworkEventLoop {
                         }
                     };
 
-                    if !kinetic_kyn::beacon::verify_beacon_signature(reveal.kyn.0, &reveal.beacon_signature, dev_mode) {
+                    if !kinetic_kyn::beacon::verify_beacon_signature(
+                        reveal.kyn.as_u64(),
+                        &reveal.beacon_signature,
+                        dev_mode,
+                    ) {
                         tracing::warn!(
                             error = ?kinetic_core::error::RecordRejectReason::InvalidSignature,
                             "Skipping candidate: Invalid beacon_signature in tie-breaker"
@@ -291,16 +294,16 @@ impl super::core::NetworkEventLoop {
                         continue;
                     }
 
-                    let drand_bytes = kinetic_primitives::sha256_hash(&drand_sig_bytes);
+                    let drand_bytes = kinetic_primitives::sha256(&drand_sig_bytes);
 
-                    let hash = kinetic_primitives::sha256_hash_concat(&[
+                    let hash = kinetic_primitives::sha256_concat(&[
                         reveal.name.as_bytes(),
                         &reveal.salt,
                         &drand_bytes,
                         &reveal.pubkey.0,
                     ]);
 
-                    if current_kyn.saturating_sub(reveal.kyn.0)
+                    if current_kyn.as_u64().saturating_sub(reveal.kyn.as_u64())
                         > kinetic_core::types::RESQUARING_EPOCH_KYNS
                     {
                         tracing::warn!(
@@ -408,14 +411,18 @@ mod tests {
         let reveal = Reveal {
             protocol_version: 1,
             name: "dummy.kin".to_string(),
-            payload: vec![],
+            embedded_nrs: vec![],
             salt: [0u8; 32],
-            kyn: kinetic_kyn::types::Kyn(0),
+            kyn: kinetic_kyn::types::TargetKyn::from(0),
             beacon_signature: "0".repeat(192),
             vdf_proof: VdfProof { proof_bytes },
             iterations: 1000,
-            pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
-            identity_signature: vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+            pubkey: kinetic_primitives::keypairs::IdentityPubKey(
+                vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+            ),
+            identity_signature: kinetic_primitives::keypairs::IdentitySignature(
+                vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+            ),
             previous_proof: None,
             authorization: None,
         };
@@ -430,7 +437,7 @@ mod tests {
         let winner = NetworkEventLoop::xor_tie_breaker(
             "dummy.kin",
             vec![payload_a.clone(), payload_b.clone()],
-            0,
+            kinetic_kyn::types::CurrentKyn::from(0),
         );
         assert_eq!(winner.unwrap(), payload_b);
 
@@ -438,7 +445,7 @@ mod tests {
         let winner2 = NetworkEventLoop::xor_tie_breaker(
             "dummy.kin",
             vec![payload_a.clone(), payload_b.clone()],
-            kyn,
+            kinetic_kyn::types::CurrentKyn::from(kyn),
         );
         assert_eq!(winner2.unwrap(), payload_a);
     }

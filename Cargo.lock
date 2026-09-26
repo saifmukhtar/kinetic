@@ -2797,6 +2797,7 @@ dependencies = [
  "kinetic-kyn",
  "kinetic-local",
  "kinetic-network",
+ "kinetic-primitives",
  "kinetic-storage",
  "kinetic-types",
  "kinetic-vdf",

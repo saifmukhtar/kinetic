@@ -6,16 +6,20 @@ fn test_reveal_invalid_names() {
     let mut reveal = Reveal {
         protocol_version: 1,
         name: String::new(),
-        payload: vec![],
+        embedded_nrs: vec![],
         salt: [0; 32],
-        kyn: kinetic_kyn::types::Kyn(1000),
+        kyn: kinetic_kyn::types::TargetKyn::from(1000),
         beacon_signature: "0".repeat(192),
         iterations: 1000,
         vdf_proof: VdfProof {
             proof_bytes: vec![],
         },
-        pubkey: kinetic_primitives::kinetic_keypair::IdentityPubKey(vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH]),
-        identity_signature: vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+        pubkey: kinetic_primitives::keypairs::IdentityPubKey(
+            vec![0; kinetic_primitives::KINETIC_PUBKEY_LENGTH],
+        ),
+        identity_signature: kinetic_primitives::keypairs::IdentitySignature(
+            vec![0; kinetic_primitives::KINETIC_SIGNATURE_LENGTH],
+        ),
         previous_proof: None,
         authorization: None,
     };

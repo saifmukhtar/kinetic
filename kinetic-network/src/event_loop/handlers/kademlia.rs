@@ -193,7 +193,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                         );
                         tracing::warn!(error_code = err.code(), "{}", err);
                         let _ = event_loop.swarm.disconnect_peer_id(source);
-                        let expire_kyn = event_loop.current_kyn + 28800;
+                        let expire_kyn = event_loop.current_kyn.as_u64() + 28800;
                         event_loop.banned_peers.put(source, expire_kyn);
 
                         let key = format!(

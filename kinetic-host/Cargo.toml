@@ -30,6 +30,7 @@ service-manager.workspace = true
 tokio = { workspace = true, features = ["net"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
+kinetic-primitives = { version = "0.2.0", path = "../kinetic-primitives" }
 
 [dev-dependencies]
 proptest.workspace = true

@@ -1,13 +1,13 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
 use kinetic_kid::{ControllerKey, Did, Document};
-use kinetic_primitives::kinetic_keypair::ControllerPrivKey;
+use kinetic_primitives::keypairs::ControllerPrivKey;
 
 #[test]
 fn test_013_kid_takeover() {
     // 1. Victim generates their identity
     let victim_key = ControllerPrivKey::generate();
     let victim_pub_b64 = b64_url.encode(victim_key.to_pubkey().as_bytes());
-    let hash = kinetic_primitives::sha256_hash(victim_key.to_pubkey().as_bytes());
+    let hash = kinetic_primitives::sha256(victim_key.to_pubkey().as_bytes());
     let mut hex_hash = String::new();
     for byte in hash {
         use std::fmt::Write;
@@ -18,7 +18,7 @@ fn test_013_kid_takeover() {
     let doc = Document {
         doc_type: "kinetic.kid.v1".to_string(),
         kid: Did::new(&victim_did).unwrap(),
-        created_at: kinetic_kyn::types::UTime(1000),
+        created_at: kinetic_kyn::types::UKyn(1000),
         controller_keys: vec![ControllerKey {
             id: format!("{}#primary", victim_did),
             key_type: "Controller".to_string(),
@@ -39,7 +39,7 @@ fn test_013_kid_takeover() {
     let forged_doc = Document {
         doc_type: "kinetic.kid.v1".to_string(),
         kid: Did::new(&victim_did).unwrap(), // Claiming victim's DID!
-        created_at: kinetic_kyn::types::UTime(2000),
+        created_at: kinetic_kyn::types::UKyn(2000),
         controller_keys: vec![ControllerKey {
             id: format!("{}#primary", victim_did),
             key_type: "Controller".to_string(),

@@ -5,15 +5,15 @@ use kinetic_core::config::KineticConfig;
 /// Manually triggers a Kademlia Distributed Hash Table (DHT) bootstrapping event.
 ///
 /// > [!NOTE]
-/// > Standard users rarely need to call this manually. The Kinetic Daemon automatically 
-/// > bootstraps on startup and runs periodic refresh cycles. This command is primarily 
+/// > Standard users rarely need to call this manually. The Kinetic Daemon automatically
+/// > bootstraps on startup and runs periodic refresh cycles. This command is primarily
 /// > designed for debugging partitioned networks.
 ///
 /// ### Execution Flow
 /// 1. Sends an HTTP POST to `/api/v1/micro/network/bootstrap`.
-/// 2. The Daemon receives the request and commands its local `NetworkClient` to 
+/// 2. The Daemon receives the request and commands its local `NetworkClient` to
 ///    traverse the Libp2p swarm routing table to mathematically discover the closest peers.
-/// 3. The CLI formats the JSON response into a tabular terminal display showing the 
+/// 3. The CLI formats the JSON response into a tabular terminal display showing the
 ///    discovered `PeerId`s and their Multiaddrs.
 pub async fn handle_bootstrap(
     config: &KineticConfig,
@@ -27,7 +27,7 @@ pub async fn handle_bootstrap(
     let port = config.daemon.api_port;
     let url = format!(
         "http://{}:{}/api/v1/micro/network/bootstrap",
-        config.daemon.bind_ip, port
+        config.peer.bind_ip, port
     );
 
     let resp = client.post(&url).send().await?;
@@ -36,7 +36,10 @@ pub async fn handle_bootstrap(
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        anyhow::bail!("{}", crate::utils::parse_and_format_api_error("Daemon error", status, &text));
+        anyhow::bail!(
+            "{}",
+            crate::utils::parse_and_format_api_error("Daemon error", status, &text)
+        );
     }
 
     let json: serde_json::Value = resp.json().await?;

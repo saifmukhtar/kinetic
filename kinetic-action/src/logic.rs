@@ -13,9 +13,7 @@
 use std::collections::HashMap;
 
 use crate::error::ActionError;
-use crate::types::{
-    ActionConfig, ActionEffect, ActionState, Hash256, SignedActionMessage,
-};
+use crate::types::{ActionConfig, ActionEffect, ActionState, Hash256, SignedNetworkAction};
 
 /// Validates that the static cryptographic keys required for network actions have been correctly initialized.
 ///
@@ -52,7 +50,7 @@ impl ActionState {
     /// # Returns
     ///
     /// A new `ActionState` ready for genesis block processing.
-    pub fn new(genesis_kyn: kinetic_kyn::types::Kyn) -> Self {
+    pub fn new(genesis_kyn: kinetic_kyn::types::GenesisKyn) -> Self {
         Self {
             genesis_kyn,
             active_sovereign_key: None,
@@ -62,7 +60,6 @@ impl ActionState {
             pause_history: Vec::new(),
             executed_hashes: HashMap::new(),
             action_log: Vec::new(),
-
         }
     }
 
@@ -80,19 +77,19 @@ impl ActionState {
     /// # Returns
     ///
     /// A deterministic 32-byte `[u8; 32]` SHA-256 hash of the canonical message bytes.
-    pub fn hash_action(msg: &SignedActionMessage) -> Hash256 {
-        kinetic_primitives::sha256_hash(&msg.to_bytes())
+    pub fn hash_action(msg: &SignedNetworkAction) -> Hash256 {
+        kinetic_primitives::sha256(&msg.to_bytes())
     }
 
     /// Prunes the `executed_hashes` set.
     ///
     /// Items are pruned if they have been executed for more than the network's `MAX_AGE_KYNS`.
     /// This keeps the state file bounded.
-    pub fn prune(&mut self, current_kyn: kinetic_kyn::types::Kyn, config: &ActionConfig) {
+    pub fn prune(&mut self, current_kyn: kinetic_kyn::types::CurrentKyn, config: &ActionConfig) {
         // Remove executed hashes older than the max age
         let max_age_kyns = config.max_age_kyns;
         self.executed_hashes
-            .retain(|_, exec_kyn| current_kyn.0 <= exec_kyn.0 + max_age_kyns);
+            .retain(|_, exec_kyn| current_kyn.as_u64() <= exec_kyn.0 + max_age_kyns);
     }
 
     /// Retrieves the static Sovereign verifying key.
@@ -100,9 +97,12 @@ impl ActionState {
     /// # Errors
     ///
     /// Returns an [`ActionError`] if the key is missing, invalid, or has the wrong length.
-    pub fn get_sovereign_key(&self, config: &ActionConfig) -> Result<kinetic_primitives::kinetic_keypair::SovereignPubKey, ActionError> {
+    pub fn sovereign_key(
+        &self,
+        config: &ActionConfig,
+    ) -> Result<kinetic_primitives::keypairs::SovereignPubKey, ActionError> {
         if let Some(key) = &self.active_sovereign_key {
-            return Ok(kinetic_primitives::kinetic_keypair::SovereignPubKey(key.clone()));
+            return Ok(key.clone());
         }
 
         let bytes = hex::decode(&config.sovereign_key_hex)
@@ -110,7 +110,7 @@ impl ActionState {
         if bytes.len() != kinetic_primitives::KINETIC_PUBKEY_LENGTH {
             return Err(ActionError::KeyLengthMismatch);
         }
-        Ok(kinetic_primitives::kinetic_keypair::SovereignPubKey(bytes))
+        Ok(kinetic_primitives::keypairs::SovereignPubKey(bytes))
     }
 
     /// Verifies whether a signed action message meets validity rules to be executed.
@@ -120,11 +120,11 @@ impl ActionState {
     /// Returns an [`ActionError`] if the message is stale, the signature is missing, or invariants are violated.
     pub fn verify_action(
         &mut self,
-        msg: &SignedActionMessage,
-        current_kyn: kinetic_kyn::types::Kyn,
+        msg: &SignedNetworkAction,
+        current_kyn: kinetic_kyn::types::CurrentKyn,
         config: &ActionConfig,
     ) -> Result<Option<ActionEffect>, ActionError> {
-        crate::engine::get_active_engine(&config.action_model).verify_action(
+        crate::engine::active_engine(&config.action_model).verify_action(
             self,
             msg,
             current_kyn,
@@ -135,11 +135,11 @@ impl ActionState {
     /// Executes a verified network action, applying its state changes and returning any resulting effects.
     pub fn execute_action(
         &mut self,
-        msg: &SignedActionMessage,
-        current_kyn: kinetic_kyn::types::Kyn,
+        msg: &SignedNetworkAction,
+        current_kyn: kinetic_kyn::types::CurrentKyn,
         config: &ActionConfig,
     ) -> Option<ActionEffect> {
-        crate::engine::get_active_engine(&config.action_model).execute_action(
+        crate::engine::active_engine(&config.action_model).execute_action(
             self,
             msg,
             current_kyn,
@@ -155,8 +155,8 @@ impl ActionState {
 /// Returns an [`ActionError`] if the action fails verification or execution rules.
 pub fn process_action_message(
     state: &mut ActionState,
-    msg: &SignedActionMessage,
-    current_kyn: kinetic_kyn::types::Kyn,
+    msg: &SignedNetworkAction,
+    current_kyn: kinetic_kyn::types::CurrentKyn,
     config: &ActionConfig,
 ) -> Result<Option<ActionEffect>, ActionError> {
     let effect = state.verify_action(msg, current_kyn, config)?;

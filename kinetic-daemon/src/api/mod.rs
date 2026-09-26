@@ -1,8 +1,8 @@
 //! HTTP REST API router, authentication middleware, state management, and server bootstrap.
 //!
 //! ## Layer 8 Architecture: The Desktop/CLI Bridge
-//! This module represents the absolute edge of the Kinetic workspace. It is a synchronous 
-//! `axum` HTTP server designed explicitly to receive commands from the local Electron Desktop UI 
+//! This module represents the absolute edge of the Kinetic workspace. It is a synchronous
+//! `axum` HTTP server designed explicitly to receive commands from the local Electron Desktop UI
 //! and the local `kinetic-cli`.
 //!
 //! ### The Data Flow
@@ -13,7 +13,7 @@
 //! 4. Returns JSON via synchronous HTTP response.
 //!
 //! ### Security Boundaries
-//! This API is **strictly local**. It binds exclusively to `127.0.0.1`. If external network interfaces 
+//! This API is **strictly local**. It binds exclusively to `127.0.0.1`. If external network interfaces
 //! are specified, the daemon enforces JWT Bearer authentication on every route except `/api/v1/ping`.
 
 use axum::{Router, extract::State, http::StatusCode, routing::post};
@@ -32,7 +32,7 @@ pub mod atlas;
 pub mod auth;
 /// API endpoints for configuration management.
 pub mod config;
-pub mod consensus;
+pub mod vdf_api;
 /// Error mappings and Newtype wrappers for HTTP response conversion.
 pub mod error;
 /// API endpoints for streaming Gossip.
@@ -63,7 +63,7 @@ use kid::{
 use macro_api::*;
 use nrs::{
     handle_delete_local_zone, handle_get_local_zone, handle_get_reserved_names, handle_get_zone,
-    handle_post_local_zone, handle_post_zone, handle_publish_commit, handle_publish_fat_zone,
+    handle_post_local_zone, handle_post_zone, handle_publish_commit, handle_publish_nrs_update,
     handle_publish_record, handle_publish_zone, handle_resolve_name, handle_verify_quorum,
 };
 use time::*;
@@ -184,7 +184,7 @@ pub struct ApiState {
     /// Local storage engine interface.
     pub storage: Arc<dyn StorageEngine>,
     /// The daemon's identity keypair (used for signing manual heartbeats).
-    pub daemon_keypair: kinetic_primitives::kinetic_keypair::IdentityPrivKey,
+    pub daemon_keypair: kinetic_primitives::keypairs::IdentityPrivKey,
     /// Pre-calibrated host CPU speed for VDF time estimation (Iterations Per Second).
     pub host_speed_ips: u64,
     /// Map of background VDF tasks.
@@ -212,8 +212,8 @@ pub struct ApiState {
 /// Payload for publishing a direct reveal configuration.
 #[derive(Deserialize, Debug)]
 pub struct PublishRequest {
-    /// The NameRecord object to publish.
-    pub record: kinetic_core::types::NameRecord,
+    /// The NameEnvelope object to publish.
+    pub record: kinetic_core::types::NameEnvelope,
 }
 
 /// Response format for a publish action.
@@ -339,8 +339,8 @@ pub fn app(state: ApiState) -> Router {
             axum::routing::post(handle_publish_zone),
         )
         .route(
-            "/v1/micro/nrs/fat-zone/{name}",
-            axum::routing::post(handle_publish_fat_zone),
+            "/v1/micro/nrs/nrs-update/{name}",
+            axum::routing::post(handle_publish_nrs_update),
         )
         .route(
             "/v1/macro/register",
@@ -363,8 +363,8 @@ pub fn app(state: ApiState) -> Router {
             axum::routing::post(handle_post_heartbeat),
         )
         .route(
-            "/v1/micro/nrs/fat-heartbeat/{name}",
-            axum::routing::post(handle_post_fat_heartbeat),
+            "/v1/micro/nrs/authorized-update/{name}",
+            axum::routing::post(handle_post_authorized_update),
         )
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
@@ -374,16 +374,16 @@ pub fn app(state: ApiState) -> Router {
     let public_api_routes: Router<ApiState> = Router::new()
         .route("/v1/micro/health", axum::routing::get(handle_get_health))
         .route(
-            "/v1/micro/consensus/difficulty/{name}",
-            axum::routing::get(consensus::handle_get_difficulty),
+            "/v1/micro/vdf/iterations/{name}",
+            axum::routing::get(vdf_api::handle_get_iterations),
         )
         .route(
-            "/v1/micro/consensus/takeover-difficulty/{name}",
-            axum::routing::get(consensus::handle_takeover_difficulty),
+            "/v1/micro/vdf/takeover-iterations/{name}",
+            axum::routing::get(vdf_api::handle_takeover_iterations),
         )
         .route(
-            "/v1/micro/consensus/validate",
-            axum::routing::post(consensus::handle_validate_name),
+            "/v1/micro/nrs/validate",
+            axum::routing::post(vdf_api::handle_validate_name),
         )
         .route(
             "/v1/micro/network/peer-id",
@@ -421,7 +421,6 @@ pub fn app(state: ApiState) -> Router {
             "/v1/micro/action/status",
             axum::routing::get(action::handle_get_action_status),
         )
-
         .route(
             "/v1/micro/nrs/zone/{name}",
             axum::routing::get(handle_get_zone),
@@ -508,7 +507,7 @@ fn rotate_token_on_boot(token_path: &std::path::Path) -> anyhow::Result<String> 
 
 /// Ensures all API tokens are generated and returns them.
 pub fn ensure_api_tokens() -> anyhow::Result<ApiTokens> {
-    let tokens_dir = kinetic_local::config::get_api_tokens_dir();
+    let tokens_dir = kinetic_local::config::api_tokens_dir();
 
     Ok(ApiTokens {
         admin: rotate_token_on_boot(&tokens_dir.join("admin.token"))?,
@@ -543,7 +542,7 @@ pub async fn start_server(
     port: u16,
     atlas_nsps: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<String>>>,
     host_speed_ips: u64,
-    daemon_keypair: kinetic_primitives::kinetic_keypair::IdentityPrivKey,
+    daemon_keypair: kinetic_primitives::keypairs::IdentityPrivKey,
     dns_cache: Arc<tokio::sync::Mutex<crate::proxy::dns_cache::DnsCache>>,
 ) -> anyhow::Result<()> {
     let tokens = ensure_api_tokens()?;
@@ -815,11 +814,12 @@ async fn auth_middleware(
                 && let Ok(session) = serde_json::from_slice::<crate::api::auth::AppSession>(&bytes)
             {
                 // Verify expiration using cached Kyn
-                let kyn_provider =
-                    kinetic_network::client::time_oracle::TimeOracleProvider::new(Some(state.storage.clone()));
-                let current_kyn = kyn_provider.load_cached().map(|d| d.kyn).unwrap_or(0);
+                let kyn_provider = kinetic_network::client::beacon::BeaconProvider::new(
+                    Some(state.storage.clone()),
+                );
+                let current_kyn = kyn_provider.load_cached().map(|d| d.kyn()).unwrap_or(0);
 
-                if current_kyn > 0 && current_kyn > session.expiry_kyn {
+                if current_kyn > 0 && current_kyn > session.expiry_kyn.as_u64() {
                     tracing::warn!("Rejecting API request: Session token expired");
                     return Err(StatusCode::UNAUTHORIZED);
                 }

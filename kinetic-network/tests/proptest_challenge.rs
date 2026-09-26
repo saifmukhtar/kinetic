@@ -1,5 +1,5 @@
-use kinetic_network::pow::verify_p2p_pow;
 use kinetic_kyn::types::Kyn;
+use kinetic_network::challenge::verify_p2p_challenge;
 use libp2p::PeerId;
 use proptest::prelude::*;
 
@@ -14,7 +14,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(500))]
 
     #[test]
-    fn test_sybil_pow_panic_safety(
+    fn test_sybil_challenge_panic_safety(
         kyn in any::<u64>(),
         difficulty in 0..=32u32
     ) {
@@ -22,6 +22,6 @@ proptest! {
         // PeerId generation isn't natively fuzzed via proptest simply,
         // but we can generate a random one or use a placeholder buffer for hashing.
         let peer_id = generate_random_peer_id();
-        let _ = verify_p2p_pow(&peer_id, Kyn(kyn), difficulty);
+        let _ = verify_p2p_challenge(&peer_id, Kyn(kyn), difficulty);
     }
 }

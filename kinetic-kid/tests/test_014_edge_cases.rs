@@ -1,6 +1,6 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
 use kinetic_kid::{ControllerKey, Did, Document, Error, Manifest};
-use kinetic_primitives::kinetic_keypair::ControllerPrivKey;
+use kinetic_primitives::keypairs::ControllerPrivKey;
 
 fn generate_keypair() -> ControllerPrivKey {
     ControllerPrivKey::generate()
@@ -10,7 +10,7 @@ fn create_valid_doc_and_key() -> (Document, ControllerPrivKey) {
     let keypair = generate_keypair();
     let pub_key_b64 = b64_url.encode(keypair.to_pubkey().as_bytes());
 
-    let hash = kinetic_primitives::sha256_hash(keypair.to_pubkey().as_bytes());
+    let hash = kinetic_primitives::sha256(keypair.to_pubkey().as_bytes());
     let mut hex_hash = String::new();
     for byte in hash {
         use std::fmt::Write;
@@ -22,7 +22,7 @@ fn create_valid_doc_and_key() -> (Document, ControllerPrivKey) {
     let doc = Document {
         doc_type: "kinetic.kid.v1".to_string(),
         kid: Did::new(&did_str).unwrap(),
-        created_at: kinetic_kyn::types::UTime(1000),
+        created_at: kinetic_kyn::types::UKyn(1000),
         controller_keys: vec![ControllerKey {
             id: format!("{}#primary", did),
             key_type: "Controller".to_string(),
@@ -100,13 +100,13 @@ fn test_manifest_verify_kid_mismatch() {
         doc_type: "kinetic.manifest.v1".to_string(),
         kid: other_doc.kid.clone(),
         version: 1,
-        valid_from: kinetic_kyn::types::UTime(1000),
+        valid_from: kinetic_kyn::types::UKyn(1000),
         expires_at: None,
         services: vec![],
         signature: None,
     };
     assert!(matches!(
-        manifest.verify_at_time(&doc, kinetic_kyn::types::UTime(2000)),
+        manifest.verify_at_time(&doc, kinetic_kyn::types::UKyn(2000)),
         Err(Error::UnauthorizedManifestSignature)
     ));
 }
@@ -119,13 +119,13 @@ fn test_manifest_verify_missing_signature() {
         doc_type: "kinetic.manifest.v1".to_string(),
         kid: doc.kid.clone(),
         version: 1,
-        valid_from: kinetic_kyn::types::UTime(1000),
+        valid_from: kinetic_kyn::types::UKyn(1000),
         expires_at: None,
         services: vec![],
         signature: None,
     };
     assert!(matches!(
-        manifest.verify_at_time(&signed_doc, kinetic_kyn::types::UTime(2000)),
+        manifest.verify_at_time(&signed_doc, kinetic_kyn::types::UKyn(2000)),
         Err(Error::MissingSignature)
     ));
 }
@@ -138,15 +138,16 @@ fn test_manifest_verify_invalid_signature() {
         doc_type: "kinetic.manifest.v1".to_string(),
         kid: doc.kid.clone(),
         version: 1,
-        valid_from: kinetic_kyn::types::UTime(1000),
+        valid_from: kinetic_kyn::types::UKyn(1000),
         expires_at: None,
         services: vec![],
         signature: None,
     };
     let mut signed_manifest = manifest.sign_with_controller(&key).unwrap();
-    signed_manifest.signature = Some(b64_url.encode([0u8; kinetic_primitives::KINETIC_SIGNATURE_LENGTH])); // Invalid signature bytes
+    signed_manifest.signature =
+        Some(b64_url.encode([0u8; kinetic_primitives::KINETIC_SIGNATURE_LENGTH])); // Invalid signature bytes
     assert!(matches!(
-        signed_manifest.verify_at_time(&signed_doc, kinetic_kyn::types::UTime(2000)),
+        signed_manifest.verify_at_time(&signed_doc, kinetic_kyn::types::UKyn(2000)),
         Err(Error::UnauthorizedManifestSignature)
     ));
 }
@@ -159,7 +160,7 @@ fn test_manifest_verify_short_signature() {
         doc_type: "kinetic.manifest.v1".to_string(),
         kid: doc.kid.clone(),
         version: 1,
-        valid_from: kinetic_kyn::types::UTime(1000),
+        valid_from: kinetic_kyn::types::UKyn(1000),
         expires_at: None,
         services: vec![],
         signature: None,
@@ -167,7 +168,7 @@ fn test_manifest_verify_short_signature() {
     let mut signed_manifest = manifest.sign_with_controller(&key).unwrap();
     signed_manifest.signature = Some(b64_url.encode(b"short")); // Short signature
     assert!(matches!(
-        signed_manifest.verify_at_time(&signed_doc, kinetic_kyn::types::UTime(2000)),
+        signed_manifest.verify_at_time(&signed_doc, kinetic_kyn::types::UKyn(2000)),
         Err(Error::UnauthorizedManifestSignature)
     ));
 }
@@ -183,14 +184,14 @@ fn test_manifest_verify_no_matching_key() {
         doc_type: "kinetic.manifest.v1".to_string(),
         kid: doc.kid.clone(),
         version: 1,
-        valid_from: kinetic_kyn::types::UTime(1000),
+        valid_from: kinetic_kyn::types::UKyn(1000),
         expires_at: None,
         services: vec![],
         signature: None,
     };
     let signed_manifest = manifest.sign_with_controller(&other_key).unwrap(); // Signed with wrong key
     assert!(matches!(
-        signed_manifest.verify_at_time(&signed_doc, kinetic_kyn::types::UTime(2000)),
+        signed_manifest.verify_at_time(&signed_doc, kinetic_kyn::types::UKyn(2000)),
         Err(Error::UnauthorizedManifestSignature)
     ));
 }

@@ -8,9 +8,9 @@
 //! verified, and extended with capability manifests.
 //!
 //! ## Layer 2 Architecture: Pure Mathematical Sandbox
-//! This crate operates strictly as an isolated mathematical sandbox. It does not perform 
-//! network I/O, and it explicitly does not access the local operating system clock. 
-//! All external states (such as verifying expiration against the consensus network `Kyn`) 
+//! This crate operates strictly as an isolated mathematical sandbox. It does not perform
+//! network I/O, and it explicitly does not access the local operating system clock.
+//! All external states (such as verifying expiration against the consensus network `Kyn`)
 //! must be injected by the outer `kinetic-daemon` layer.
 //!
 //! ## Core concepts
@@ -18,8 +18,8 @@
 //! - **[`Did`]** — A validated `did:kin:<hex>` string. The hex suffix
 //!   is the SHA-256 hash of the controller's primary public key.
 //! - **[`Document`]** — The identity document that binds a DID to one or
-//!   more [`ControllerKey`]s. It enforces a strict security separation between Hot 
-//!   (Controller) and Cold (Revocation) keys, and is signed with `ControllerPrivKey` 
+//!   more [`ControllerKey`]s. It enforces a strict security separation between Hot
+//!   (Controller) and Cold (Revocation) keys, and is signed with `ControllerPrivKey`
 //!   post-quantum signatures.
 //! - **[`Manifest`]** — An optional extension signed by the
 //!   controller that lists services (websites, APIs, etc.) associated with
@@ -55,7 +55,7 @@ pub use manifest::{Manifest, Service};
 mod tests {
     use super::*;
     use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as b64_url};
-    use kinetic_primitives::kinetic_keypair::ControllerPrivKey;
+    use kinetic_primitives::keypairs::ControllerPrivKey;
 
     fn generate_keypair() -> ControllerPrivKey {
         ControllerPrivKey::generate()
@@ -75,7 +75,7 @@ mod tests {
         let doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid: did.clone(),
-            created_at: kinetic_kyn::types::UTime(1000),
+            created_at: kinetic_kyn::types::UKyn(1000),
             controller_keys: vec![],
             manifest: None,
             revocation_keys: vec![],
@@ -90,7 +90,7 @@ mod tests {
 
         // Fields must be in lexicographical order per JCS
         let expected = format!(
-            r#"{{"controller_keys":[],"created_at":1000,"deactivated":false,"kid":"did:kin:{}","type":"kinetic.kid.v1"}}"#,
+            r#"{{"controller_keys":[],"created_at":1000,"deactivated":false,"id":"did:kin:{}","type":"kinetic.kid.v1"}}"#,
             "a".repeat(64)
         );
         assert_eq!(jcs_str, expected);
@@ -101,7 +101,7 @@ mod tests {
         let keypair = generate_keypair();
         let pub_key_b64 = b64_url.encode(keypair.to_pubkey().as_bytes());
 
-        let hash = kinetic_primitives::sha256_hash(keypair.to_pubkey().as_bytes());
+        let hash = kinetic_primitives::sha256(keypair.to_pubkey().as_bytes());
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;
@@ -112,7 +112,7 @@ mod tests {
         let doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid: did.clone(),
-            created_at: kinetic_kyn::types::UTime(1234567890),
+            created_at: kinetic_kyn::types::UKyn(1234567890),
             controller_keys: vec![ControllerKey {
                 id: format!("did:kin:{}#primary", hex_hash),
                 key_type: "Controller".to_string(),
@@ -131,7 +131,7 @@ mod tests {
 
         // Tampering with any field must invalidate the signature
         let mut corrupted_doc = signed_doc.clone();
-        corrupted_doc.created_at = kinetic_kyn::types::UTime(9999999999);
+        corrupted_doc.created_at = kinetic_kyn::types::UKyn(9999999999);
         assert!(corrupted_doc.verify().is_err());
     }
 
@@ -140,7 +140,7 @@ mod tests {
         let keypair = generate_keypair();
         let pub_key_b64 = b64_url.encode(keypair.to_pubkey().as_bytes());
 
-        let hash = kinetic_primitives::sha256_hash(keypair.to_pubkey().as_bytes());
+        let hash = kinetic_primitives::sha256(keypair.to_pubkey().as_bytes());
         let mut hex_hash = String::new();
         for byte in hash {
             use std::fmt::Write;
@@ -152,7 +152,7 @@ mod tests {
         let doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid: did.clone(),
-            created_at: kinetic_kyn::types::UTime(1000),
+            created_at: kinetic_kyn::types::UKyn(1000),
             controller_keys: vec![ControllerKey {
                 id: format!("did:kin:{}#primary", hex_hash),
                 key_type: "Controller".to_string(),
@@ -168,7 +168,7 @@ mod tests {
             doc_type: "kinetic.manifest.v1".to_string(),
             kid: did,
             version: 1,
-            valid_from: kinetic_kyn::types::UTime(1000),
+            valid_from: kinetic_kyn::types::UKyn(1000),
             expires_at: None,
             services: vec![Service {
                 id: "web".to_string(),
@@ -181,14 +181,18 @@ mod tests {
 
         let signed_manifest = manifest.clone().sign_with_controller(&keypair).unwrap();
 
-        assert!(signed_manifest.verify_at_time(&doc, kinetic_kyn::types::UTime(2000)).is_ok());
+        assert!(
+            signed_manifest
+                .verify_at_time(&doc, kinetic_kyn::types::UKyn(2000))
+                .is_ok()
+        );
 
         // A manifest signed by a different key must be rejected
         let bad_keypair = generate_keypair();
         let bad_doc = Document {
             doc_type: "kinetic.kid.v1".to_string(),
             kid: Did::new(&format!("did:kin:{}", "b".repeat(64))).unwrap(),
-            created_at: kinetic_kyn::types::UTime(1000),
+            created_at: kinetic_kyn::types::UKyn(1000),
             controller_keys: vec![ControllerKey {
                 id: format!("did:kin:{}#bad", "b".repeat(64)),
                 key_type: "Controller".to_string(),
@@ -201,31 +205,43 @@ mod tests {
         };
 
         assert!(matches!(
-            signed_manifest.verify_at_time(&bad_doc, kinetic_kyn::types::UTime(2000)),
+            signed_manifest.verify_at_time(&bad_doc, kinetic_kyn::types::UKyn(2000)),
             Err(Error::UnauthorizedManifestSignature)
         ));
 
         // Test explicit verify_at_time with Drand / explicit timestamps
-        assert!(signed_manifest.verify_at_time(&doc, kinetic_kyn::types::UTime(1000)).is_ok());
-        assert!(signed_manifest.verify_at_time(&doc, kinetic_kyn::types::UTime(10000)).is_ok());
+        assert!(
+            signed_manifest
+                .verify_at_time(&doc, kinetic_kyn::types::UKyn(1000))
+                .is_ok()
+        );
+        assert!(
+            signed_manifest
+                .verify_at_time(&doc, kinetic_kyn::types::UKyn(10000))
+                .is_ok()
+        );
 
         // Manifest with future valid_from beyond 300s skew must fail
         assert!(matches!(
-            signed_manifest.verify_at_time(&doc, kinetic_kyn::types::UTime(500)),
+            signed_manifest.verify_at_time(&doc, kinetic_kyn::types::UKyn(500)),
             Err(Error::InvalidValidFrom)
         ));
 
         // Manifest with expiration
         let mut expiring_manifest = manifest.clone();
-        expiring_manifest.expires_at = Some(kinetic_kyn::types::UTime(2000));
+        expiring_manifest.expires_at = Some(kinetic_kyn::types::UKyn(2000));
         let signed_expiring = expiring_manifest.sign_with_controller(&keypair).unwrap();
-        assert!(signed_expiring.verify_at_time(&doc, kinetic_kyn::types::UTime(1500)).is_ok());
+        assert!(
+            signed_expiring
+                .verify_at_time(&doc, kinetic_kyn::types::UKyn(1500))
+                .is_ok()
+        );
         assert!(matches!(
-            signed_expiring.verify_at_time(&doc, kinetic_kyn::types::UTime(2000)),
+            signed_expiring.verify_at_time(&doc, kinetic_kyn::types::UKyn(2000)),
             Err(Error::ManifestExpired)
         ));
         assert!(matches!(
-            signed_expiring.verify_at_time(&doc, kinetic_kyn::types::UTime(2500)),
+            signed_expiring.verify_at_time(&doc, kinetic_kyn::types::UKyn(2500)),
             Err(Error::ManifestExpired)
         ));
     }
