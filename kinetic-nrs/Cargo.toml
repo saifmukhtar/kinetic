@@ -37,4 +37,4 @@ axum.workspace = true
 ed25519-dalek = { workspace = true, features = ["rand_core"] }
 kinetic-primitives = { path = "../kinetic-primitives" }
 proptest.workspace = true
-rand_core = { workspace = true, features = ["getrandom"] }
+rand_core = { workspace = true }

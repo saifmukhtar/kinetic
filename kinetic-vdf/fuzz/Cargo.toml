@@ -8,8 +8,8 @@ edition = "2021"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4"
-arbitrary = { version = "1.4.2", features = ["derive"] }
+libfuzzer-sys.workspace = true
+arbitrary = { workspace = true, features = ["derive"] }
 kinetic-vdf = { path = ".." }
 kinetic-core = { path = "../../kinetic-core" }
 

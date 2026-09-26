@@ -27,7 +27,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-rand_core = { workspace = true, features = ["getrandom"] }
+rand_core = { workspace = true }
 proptest.workspace = true
 
 [build-dependencies]

@@ -58,7 +58,7 @@ tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync", "macros
 base64.workspace = true
 kinetic-core = { path = "../kinetic-core", features = ["simulation"] }
 proptest.workspace = true
-rand_core = { workspace = true, features = ["std"] }
+rand_core = { workspace = true }
 tempfile.workspace = true
 tracing-subscriber.workspace = true
 

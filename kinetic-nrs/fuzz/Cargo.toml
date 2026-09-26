@@ -8,8 +8,8 @@ edition = "2021"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4"
-hickory-proto = "0.24.4"
+libfuzzer-sys.workspace = true
+hickory-proto.workspace = true
 kinetic-core = { path = "../../kinetic-core" }
 kinetic-dns = { path = ".." }
 
