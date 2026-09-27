@@ -6,7 +6,7 @@ use super::edge;
 #[cfg(not(target_arch = "wasm32"))]
 use super::router;
 
-impl super::core::NetworkEventLoop {
+impl super::reactor::NetworkEventLoop {
     /// Initializes a new P2P Swarm and returns the client handle and the event loop.
     #[allow(clippy::type_complexity)]
     pub fn new(

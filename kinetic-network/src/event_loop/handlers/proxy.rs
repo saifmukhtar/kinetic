@@ -1,5 +1,5 @@
 use crate::client::{ProxyRequest, ProxyResponse};
-use crate::event_loop::core::NetworkEventLoop;
+use crate::event_loop::reactor::NetworkEventLoop;
 use libp2p::request_response::{Event, Message};
 
 pub(crate) async fn handle(

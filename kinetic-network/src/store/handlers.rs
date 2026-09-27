@@ -20,7 +20,7 @@
 
 use crate::error::KineticStoreError;
 use crate::store::constants::*;
-use crate::store::core::KineticRecordStore;
+use crate::store::kademlia::KineticRecordStore;
 use kinetic_verify::signatures::VerifySignature;
 
 impl KineticRecordStore {

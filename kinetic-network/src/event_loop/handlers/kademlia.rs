@@ -1,4 +1,4 @@
-use crate::event_loop::core::NetworkEventLoop;
+use crate::event_loop::reactor::NetworkEventLoop;
 use libp2p::kad;
 
 pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
@@ -8,19 +8,19 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                 tracing::debug!("GetRecord Ok FoundRecord for query {:?}", id);
                 if let Some(mapped_name) = event_loop.query_id_to_name.get(&id) {
                     match mapped_name {
-                        crate::event_loop::core::QueryType::Quorum(name) => {
+                        crate::event_loop::reactor::QueryType::Quorum(name) => {
                             if let Some(pending) = event_loop.pending_quorums.get_mut(name)
                                 && peer_record.record.value == pending.target_payload
                             {
                                 pending.match_count += 1;
                             }
                         }
-                        crate::event_loop::core::QueryType::Get(name) => {
+                        crate::event_loop::reactor::QueryType::Get(name) => {
                             if let Some(pending) = event_loop.pending_gets.get_mut(name) {
                                 pending.received_payloads.push(peer_record.record.value);
                             }
                         }
-                        crate::event_loop::core::QueryType::Put(_) => {}
+                        crate::event_loop::reactor::QueryType::Put(_) => {}
                     }
                 } else if let Some((source, parked_record)) = event_loop.pending_reveals.remove(&id)
                 {
@@ -60,7 +60,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                                 .await;
 
                                 let _ = loopback_clone.send(
-                                    crate::event_loop::core::LoopbackCommand::CommitVerifiedRecord {
+                                    crate::event_loop::reactor::LoopbackCommand::CommitVerifiedRecord {
                                         source,
                                         record: parked_record,
                                         verdict,
@@ -78,13 +78,13 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                 tracing::debug!("GetRecord Finished/Err for query {:?}", id);
                 if let Some(mapped_name) = event_loop.query_id_to_name.remove(&id) {
                     match mapped_name {
-                        crate::event_loop::core::QueryType::Quorum(name) => {
+                        crate::event_loop::reactor::QueryType::Quorum(name) => {
                             event_loop.handle_quorum_completion(name);
                         }
-                        crate::event_loop::core::QueryType::Get(name) => {
+                        crate::event_loop::reactor::QueryType::Get(name) => {
                             event_loop.handle_get_completion(name);
                         }
-                        crate::event_loop::core::QueryType::Put(_) => {}
+                        crate::event_loop::reactor::QueryType::Put(_) => {}
                     }
                 } else if let Some((source, _)) = event_loop.pending_reveals.remove(&id) {
                     tracing::debug!(
@@ -94,7 +94,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                 }
             }
             kad::QueryResult::PutRecord(res) => {
-                if let Some(crate::event_loop::core::QueryType::Put(name)) =
+                if let Some(crate::event_loop::reactor::QueryType::Put(name)) =
                     event_loop.query_id_to_name.remove(&id)
                 {
                     let mut complete = false;
@@ -153,7 +153,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: kad::Event) {
                         .await;
 
                         let _ = loopback_clone.send(
-                            crate::event_loop::core::LoopbackCommand::CommitVerifiedRecord {
+                            crate::event_loop::reactor::LoopbackCommand::CommitVerifiedRecord {
                                 source,
                                 record: record_clone,
                                 verdict,

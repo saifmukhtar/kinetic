@@ -17,14 +17,14 @@
 /// Commands for the network event loop.
 pub mod command;
 /// Core client implementation.
-pub mod core;
+pub mod handle;
 /// Anonymous network telemetry service.
 pub mod telemetry;
 /// Types used by the network client.
 pub mod types;
 
 pub use self::command::*;
-pub use self::core::*;
+pub use self::handle::*;
 pub use self::types::*;
 /// KYN Provider entropy beacon client.
 pub mod beacon;

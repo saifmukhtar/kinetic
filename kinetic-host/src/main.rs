@@ -33,7 +33,7 @@ use kinetic_core::traits::KynProvider;
 pub mod api;
 
 /// KYN epoch manager and dynamic routing publisher.
-pub mod epoch;
+pub mod hot_swap;
 /// P2P Gossipsub network handlers.
 pub mod gossip;
 /// Host identity key management.
@@ -355,7 +355,7 @@ async fn run_host() -> Result<()> {
 
     let local_peer_id_str = Arc::new(std::sync::RwLock::new(local_peer_id.to_string()));
 
-    tokio::spawn(epoch::start_routing_publisher(
+    tokio::spawn(hot_swap::start_routing_publisher(
         host_key.clone(),
         local_peer_id_str.clone(),
         host_peer_id.to_string(),
@@ -363,7 +363,7 @@ async fn run_host() -> Result<()> {
         kyn_rx.clone(),
     ));
 
-    tokio::spawn(epoch::start_beacon_heartbeat(
+    tokio::spawn(hot_swap::start_beacon_heartbeat(
         kyn_provider.clone(),
         kyn_tx,
         local_peer_id,

@@ -1,5 +1,5 @@
 use kinetic_core::types::vdf::{PreviousProof, Reveal, VdfProof};
-use kinetic_network::store::core::KineticRecordStore;
+use kinetic_network::store::kademlia::KineticRecordStore;
 use kinetic_storage::KineticStorage;
 use libp2p::{PeerId, kad};
 use proptest::prelude::*;

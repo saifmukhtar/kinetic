@@ -46,7 +46,7 @@ pub mod security;
 /// Network tunneling for proxy requests
 pub mod tunnel;
 /// Web2 CNAME bridge and SSRF safe resolution
-pub mod web2_bridge;
+pub mod external_http;
 
 pub use http::*;
 pub use p2p::*;
@@ -56,7 +56,7 @@ pub use route_p2p::*;
 #[cfg(test)]
 pub(crate) use security::*;
 pub use tunnel::*;
-pub use web2_bridge::*;
+pub use external_http::*;
 
 /// Errors that can occur during proxy operations.
 #[derive(Debug, thiserror::Error)]

@@ -1,7 +1,7 @@
 use kinetic_core::error::PublishError;
 use kinetic_network::NetworkEventLoop;
 use kinetic_network::client::command::Command;
-use kinetic_network::client::core::NetworkClient;
+use kinetic_network::client::handle::NetworkClient;
 use kinetic_network::client::types::{ProxyError, ProxyRequest};
 use libp2p::PeerId;
 use tokio::sync::mpsc;

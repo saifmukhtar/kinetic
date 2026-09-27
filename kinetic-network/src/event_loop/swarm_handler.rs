@@ -7,7 +7,7 @@ use kinetic_core::error::ResolutionError;
 use libp2p::kad::store::RecordStore;
 use libp2p::{kad, swarm::SwarmEvent};
 
-impl super::core::NetworkEventLoop {
+impl super::reactor::NetworkEventLoop {
     pub(crate) fn is_valid_pow(&self, peer_id: &libp2p::PeerId, difficulty: u32) -> bool {
         if self.disable_challenge {
             return true;
@@ -177,7 +177,7 @@ impl super::core::NetworkEventLoop {
                             })
                             .await;
                         let _ = loopback_clone.send(
-                            crate::event_loop::core::LoopbackCommand::ConnectionPoWVerified {
+                            crate::event_loop::reactor::LoopbackCommand::ConnectionPoWVerified {
                                 peer_id: peer_id_clone,
                                 valid_client,
                                 _valid_server: valid_server,

@@ -1,4 +1,4 @@
-use crate::event_loop::core::NetworkEventLoop;
+use crate::event_loop::reactor::NetworkEventLoop;
 use kinetic_types::cdn::{CdnRequest, CdnResponse};
 use libp2p::kad::store::RecordStore;
 use libp2p::request_response::{Event, Message};
@@ -77,7 +77,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event<CdnReques
 
                             if is_valid {
                                 let _ = tx.send(
-                                    crate::event_loop::core::LoopbackCommand::CdnResolutionVerified {
+                                    crate::event_loop::reactor::LoopbackCommand::CdnResolutionVerified {
                                         domain,
                                         record_bytes,
                                         peer,

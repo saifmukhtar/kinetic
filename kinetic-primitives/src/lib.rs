@@ -22,7 +22,7 @@ use ml_dsa::{KeyInit, MlDsa65};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
-pub mod core;
+pub mod signer;
 pub mod keypairs;
 
 /// The exact byte length of a Kinetic Network post-quantum public key (ML-DSA-65).

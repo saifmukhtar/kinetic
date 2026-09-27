@@ -2,7 +2,7 @@
 
 /// Outbound command handlers.
 pub mod command_handler;
-pub mod core;
+pub mod reactor;
 pub(crate) mod edge;
 /// Specialized handlers.
 pub mod handlers;
@@ -15,4 +15,4 @@ pub mod swarm_handler;
 /// Event loop utilities.
 pub mod utils;
 
-pub use self::core::NetworkEventLoop;
+pub use self::reactor::NetworkEventLoop;

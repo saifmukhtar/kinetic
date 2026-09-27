@@ -1,4 +1,4 @@
-use crate::event_loop::core::NetworkEventLoop;
+use crate::event_loop::reactor::NetworkEventLoop;
 use libp2p::gossipsub::Event;
 
 pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
@@ -24,7 +24,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
                 tracing::warn!(error_code = err.code(), "{}", err);
                 if let Some(tx) = &event_loop.loopback_tx {
                     let _ = tx.send(
-                        crate::event_loop::core::LoopbackCommand::CommitGossipValidation {
+                        crate::event_loop::reactor::LoopbackCommand::CommitGossipValidation {
                             message_id,
                             source: propagation_source,
                             is_valid: None,
@@ -91,7 +91,7 @@ pub(crate) async fn handle(event_loop: &mut NetworkEventLoop, e: Event) {
 
             if let Some(tx) = loopback {
                 let _ = tx.send(
-                    crate::event_loop::core::LoopbackCommand::CommitGossipValidation {
+                    crate::event_loop::reactor::LoopbackCommand::CommitGossipValidation {
                         message_id: message_id.clone(),
                         source: propagation_source,
                         is_valid: Some(is_valid),

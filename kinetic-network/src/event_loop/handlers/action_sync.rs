@@ -4,7 +4,7 @@ use tracing::debug;
 
 /// Handle inbound ActionSync protocol events
 pub async fn handle(
-    swarm: &mut crate::event_loop::core::NetworkEventLoop,
+    swarm: &mut crate::event_loop::reactor::NetworkEventLoop,
     event: Event<ActionSyncRequest, ActionSyncResponse>,
 ) {
     match event {

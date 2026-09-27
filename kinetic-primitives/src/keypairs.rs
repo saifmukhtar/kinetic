@@ -34,7 +34,7 @@
 //! let secret_bytes = controller.to_secret_bytes();
 //! ```
 
-use crate::core::KineticKeypair;
+use crate::signer::KineticKeypair;
 
 /// 1. Identity Key
 /// The root of trust, derived directly from the user's master seed phrase.

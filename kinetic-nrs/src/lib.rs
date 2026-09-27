@@ -22,7 +22,7 @@
 
 pub mod cache;
 pub mod handler;
-pub mod kinetic_records;
+pub mod records;
 pub mod upstream;
 
 use hickory_resolver::TokioAsyncResolver;

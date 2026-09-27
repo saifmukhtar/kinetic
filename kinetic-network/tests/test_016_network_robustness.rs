@@ -3,7 +3,7 @@
 use kinetic_core::traits::StorageEngine;
 use kinetic_core::traits::VdfEngine;
 use kinetic_network::client::{NetworkConfig, NetworkMode};
-use kinetic_network::event_loop::core::NetworkEventLoop;
+use kinetic_network::event_loop::reactor::NetworkEventLoop;
 use kinetic_storage::KineticStorage;
 use libp2p::identity::Keypair;
 use proptest::prelude::*;
