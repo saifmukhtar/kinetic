@@ -10,7 +10,7 @@ Crucially, higher-level crates should use the semantic wrappers (e.g., `Kyn`, `U
 
 ```rust
 use kinetic_kyn::types::{Kyn, UKyn, GenesisKyn};
-use kinetic_kyn::beacon::{verify_beacon, RawKyn};
+use kinetic_kyn::beacon::RawKyn;
 
 // Convert raw Unix time to Network Time (Kyn)
 let genesis = GenesisKyn::from(1600000000);
@@ -18,13 +18,15 @@ let current_kyn = Kyn::new(150);
 
 // Verify an incoming Drand beacon payload
 let raw_beacon = RawKyn {
-    round: 150,
-    signature: vec![/* BLS12-381 G2 bytes */],
-    previous_signature: vec![/* bytes */],
+    beacon_idx: 150,
+    randomness: "bd5f...".to_string(),
+    signature: "ac83...".to_string(),
+    is_from_cache: false,
+    is_unavailable: false,
 };
 
 // Returns mathematically proven time if the signature matches the League of Entropy
-assert!(verify_beacon(&raw_beacon, false).is_ok());
+assert!(raw_beacon.verify_beacon(false));
 ```
 
 ## 3. Internal Architecture
