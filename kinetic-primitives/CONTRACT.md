@@ -1,7 +1,7 @@
 # Crate Contract: `kinetic-primitives`
 
 ## 1. Domain Purpose
-This is the absolute bedrock of the Kinetic Network (Layer 1). Its singular purpose is to execute pure, canonical cryptographic operations (hashing and ML-DSA-65 post-quantum signatures) and enforce the Kinetic Key Taxonomy via compile-time strict typing.
+This is the absolute bedrock of the Kinetic Network (Layer 0). Its singular purpose is to execute pure, canonical cryptographic operations (hashing and ML-DSA-65 post-quantum signatures) and enforce the Kinetic Key Taxonomy via compile-time strict typing.
 
 ## 2. Pre-conditions (What the caller MUST do)
 * **Entropy Management:** When generating a key from a seed (`from_seed`), the caller assumes 100% responsibility for ensuring the 32-byte seed contains true cryptographic entropy.

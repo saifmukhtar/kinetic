@@ -12,7 +12,7 @@ This crate exclusively owns **Identity (The "Who")**.
 It explicitly ignores everything else in the protocol. It knows absolutely nothing about network routing, governance voting, RPC communication, or VDF blocks. It only answers one question: *"Is this identity document mathematically and structurally valid according to protocol bounds?"*
 
 ## 4. Key Taxonomy Enforcement
-This crate strictly enforces the Layer 1 `kinetic-primitives` Key Taxonomy. It rejects the generic `KineticKeypair`. Instead, it explicitly demands:
+This crate strictly enforces the Layer 0 `kinetic-primitives` Key Taxonomy. It rejects the generic `KineticKeypair`. Instead, it explicitly demands:
 * **`ControllerPrivKey`:** To sign updates, key rotations, and capability manifests.
 * **`RevokePrivKey`:** To permanently deactivate and burn an identity document.
 

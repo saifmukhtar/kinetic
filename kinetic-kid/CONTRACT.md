@@ -20,5 +20,5 @@ This crate implements the **Kinetic Identity Document (KID)** protocol (Layer 2)
 * **Zero Network Transport:** This crate NEVER makes an HTTP or P2P request. It operates strictly on raw bytes/JSON provided in memory.
 
 ## 5. Trust Boundaries & Dependencies
-* **Internal:** Fully trusts `kinetic-primitives` (Layer 1) for the actual cryptographic signature math. Fully trusts `kinetic-kyn` (Layer 1.5) for the time structures.
+* **Internal:** Fully trusts `kinetic-primitives` (Layer 0) for the actual cryptographic signature math. Fully trusts `kinetic-kyn` (Layer 1) for the time structures.
 * **External:** Fully trusts `serde` for JSON syntax parsing (though this crate restricts sequence limits).

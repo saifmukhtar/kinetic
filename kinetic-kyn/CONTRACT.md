@@ -1,7 +1,7 @@
 # Crate Contract: `kinetic-kyn`
 
 ## 1. Domain Purpose
-This crate manages the concept of **Time** in the Kinetic Network. Its singular role is to define strict types for network time (`Kyn`, `UKyn`) and cryptographically verify the external Drand time beacon (`RawKyn`). 
+This crate manages the concept of **Time** in the Kinetic Network (Layer 1). Its singular role is to define strict types for network time (`Kyn`, `UKyn`) and cryptographically verify the external Drand time beacon (`RawKyn`). 
 
 ## 2. Pre-conditions (What the caller MUST do)
 * **Network Transport:** The caller MUST fetch the beacon payload from the external internet (via HTTP or P2P). This crate has absolutely zero network dependencies.
@@ -19,5 +19,5 @@ This crate manages the concept of **Time** in the Kinetic Network. Its singular 
 * **Zero Semantic Payload:** This crate NEVER knows what a `KineticIdentity` or `NetworkAction` is. It only understands pure time and beacon math.
 
 ## 5. Trust Boundaries & Dependencies
-* **Internal:** Fully trusts `kinetic-primitives` (Layer 1) for SHA-256 hashing.
+* **Internal:** Fully trusts `kinetic-primitives` (Layer 0) for SHA-256 hashing.
 * **External:** Fully trusts `beacon-verify` and `hex` for BLS12-381 G2 signature validation against the hardcoded public key.

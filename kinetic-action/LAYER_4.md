@@ -22,7 +22,7 @@ To maintain predictable, deterministic state transitions, this crate must adhere
 - **No Asynchronous Execution**: `async/await`, `tokio`, or thread pools are strictly forbidden. State transitions must be instantaneous and mathematically pure.
 - **No Disk I/O**: `std::fs` is forbidden. The active daemon or node process must handle loading the state from disk and passing the initialized `ActionState` struct into this crate.
 - **No Network Networking**: `reqwest`, `libp2p`, and `hyper` are forbidden. This crate parses `SignedActionMessage` bytes but does not transmit them.
-- **Dependency Isolation**: This crate may only depend on Layer 1 (`kinetic-primitives`), Layer 2 (`kinetic-kid`), and Layer 3 (`kinetic-types`). It must never depend on `kinetic-core`, `kinetic-network`, or `kinetic-rpc`.
+- **Dependency Isolation**: This crate may only depend on Layer 0 (`kinetic-primitives`), Layer 1 (`kinetic-kyn`), Layer 2 (`kinetic-kid`), and Layer 3 (`kinetic-types`). It must never depend on `kinetic-core`, `kinetic-network`, or `kinetic-rpc`.
 
 ## Abstraction Boundaries
 

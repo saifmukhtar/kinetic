@@ -15,7 +15,7 @@ let timestamp = time.to_ukyn();
 ```
 
 ## 3. Key Taxonomy & Signatures
-Following the **Strict Key Taxonomy** pattern, `kinetic-types` NEVER relies on underlying algorithmic details (like ML-DSA). It strictly uses the abstracted wrappers from Layer 1 (`kinetic-primitives`):
+Following the **Strict Key Taxonomy** pattern, `kinetic-types` NEVER relies on underlying algorithmic details (like ML-DSA). It strictly uses the abstracted wrappers from Layer 0 (`kinetic-primitives`):
 
 - **`IdentityPubKey` / `IdentityPrivKey`**: Used for mapping domain names and verifying heartbeats.
 - **`SovereignPubKey` / `SovereignPrivKey`**: Used for network-wide administrative actions and emergency halts.

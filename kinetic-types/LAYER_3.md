@@ -5,7 +5,7 @@ The `kinetic-types` crate is part of **Layer 3: Network Data Shapes & Domain Bin
 
 ## 2. The Core Architectural Rule (The Invariant)
 **No external dependency or network logic.**
-This layer is strictly data and schema definitions. It is forbidden from importing heavy network engines (like `libp2p`), consensus storage layers, or system-level hardware dependencies. It relies exclusively on native Rust primitives, Serde serialization, and Layer 1 cryptography (`kinetic-primitives`).
+This layer is strictly data and schema definitions. It is forbidden from importing heavy network engines (like `libp2p`), consensus storage layers, or system-level hardware dependencies. It relies exclusively on native Rust primitives, Serde serialization, and Layer 0 cryptography (`kinetic-primitives`).
 
 ## 3. The Horizontal Boundary
 This crate exclusively owns the **Network Wire Schemas**. It dictates exactly how data structures (such as KIDs, Name Records, IPC Proxies, and VDF Proofs) are serialized and deserialized across the network.

@@ -18,7 +18,7 @@ match record.verify_signature(&network_salt) {
 ```
 
 ## 3. Internal Architecture
-This crate does not implement cryptographic algorithms directly (that is handled by Layer 1 `kinetic-primitives`). Instead, it acts as the semantic bridge, enforcing how those strictly-typed taxonomy wrappers (like `IdentityPubKey` and `DelegatedPubKey`) are applied to Kinetic-specific data structures like identity delegations, manifest capability checks, and Name System mappings.
+This crate does not implement cryptographic algorithms directly (that is handled by Layer 0 `kinetic-primitives`). Instead, it acts as the semantic bridge, enforcing how those strictly-typed taxonomy wrappers (like `IdentityPubKey` and `DelegatedPubKey`) are applied to Kinetic-specific data structures like identity delegations, manifest capability checks, and Name System mappings.
 
 ## 4. Reading Guide
 
