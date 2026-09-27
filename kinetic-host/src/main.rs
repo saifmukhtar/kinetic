@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! # kinetic-host (Layer 8: Payload Seeder)
 //!
 //! The headless Kinetic content-hosting executable (`kinetic-host`).

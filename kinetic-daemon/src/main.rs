@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! # kinetic-daemon (Layer 8: System Daemons & Services)
 //!
 //! The primary user-facing Kinetic daemon executable (`kinetic-daemon`).

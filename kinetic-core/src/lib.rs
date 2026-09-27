@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! # kinetic-core
 //!
 //! The foundational shared kernel for the Kinetic decentralized naming network.

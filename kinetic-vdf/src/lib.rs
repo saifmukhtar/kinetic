@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! # kinetic-vdf (RSA)
 //!
 //! A pure Rust implementation of an RSA-based Verifiable Delay Function

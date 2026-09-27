@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! # kinetic-network (Layer 7 Trunk)
 //!
 //! The massive P2P networking trunk of the Kinetic workspace.

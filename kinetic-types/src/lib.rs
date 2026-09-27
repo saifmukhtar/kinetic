@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! Canonical data types, schemas, and cryptographic serialization for the Kinetic network.
 //!
 //! `kinetic-types` serves as the Layer 3 data schema hub for the entire

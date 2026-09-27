@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! # kinetic-nrs
 //!
 //! DNS resolution layer for the Kinetic `.kin` naming network.

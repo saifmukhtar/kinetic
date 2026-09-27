@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! # kinetic-pac
 //!
 //! Highly privileged OS network configurator and PAC (Proxy Auto-Configuration) daemon.

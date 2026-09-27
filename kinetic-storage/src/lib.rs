@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! # kinetic-storage
 //!
 //! Persistent key-value storage for the Kinetic network, backed by
