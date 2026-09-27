@@ -1194,11 +1194,11 @@ paths:
                     type: string
                   quorum_count:
                     type: integer
-  /api/v1/micro/consensus/difficulty/{name}:
+  /api/v1/micro/vdf/iterations/{name}:
     get:
-      operationId: getConsensusDifficulty
+      operationId: getVdfIterations
       summary: Pre-flight calculation of VDF time for new names [Public]
-      tags: [Consensus]
+      tags: [VDF]
       parameters:
         - name: name
           in: path
@@ -1243,11 +1243,11 @@ paths:
                         type: string
                       hardware_rating:
                         type: string
-  /api/v1/micro/consensus/takeover-difficulty/{name}:
+  /api/v1/micro/vdf/takeover-iterations/{name}:
     get:
-      operationId: getTakeoverDifficulty
+      operationId: getTakeoverIterations
       summary: Calculates decay multiplier for taking over idle names [Public]
-      tags: [Consensus]
+      tags: [VDF]
       parameters:
         - name: name
           in: path
@@ -1277,11 +1277,11 @@ paths:
                     type: integer
                   decay_multiplier:
                     type: number
-  /api/v1/micro/consensus/validate:
+  /api/v1/micro/nrs/validate:
     post:
       operationId: validateName
       summary: Validates domain syntax, LDH rules, and reserved categories [Public]
-      tags: [Consensus]
+      tags: [NRS]
       requestBody:
         required: true
         content:
