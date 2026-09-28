@@ -29,6 +29,7 @@ lru.workspace = true
 rand.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 rustc-hash.workspace = true
+rustls = { workspace = true, features = ["ring"] }
 serde = { workspace = true, features = ["derive", "rc"] }
 serde_json.workspace = true
 thiserror.workspace = true

@@ -30,6 +30,10 @@ impl super::reactor::NetworkEventLoop {
         >,
         vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
     ) -> std::result::Result<(NetworkClient, Self), anyhow::Error> {
+        // Ensure the default crypto provider is installed for TLS/QUIC connections.
+        // It's safe to ignore the error if it was already installed by a host application.
+        let _ = rustls::crypto::ring::default_provider().install_default();
+
         let (tx, rx) = mpsc::channel(32);
 
         let (mut swarm, client) = if config.mode == NetworkMode::Edge {
