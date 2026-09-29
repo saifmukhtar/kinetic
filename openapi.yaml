@@ -35,7 +35,7 @@ components:
           type: array
           items:
             type: string
-            enum: [admin, kid, nrs, vdf, action, gossip, metric, system, atlas]
+            enum: [admin, kid, nrs, vdf, action, gossip, metric, system, atlas, heartbeat]
         expiry_kyn:
           type: integer
           format: uint64
@@ -1405,7 +1405,7 @@ paths:
     post:
       operationId: postHeartbeat
       summary: Manually broadcast a heartbeat to keep a name active [Private]
-      description: Requires Nrs or Admin role.
+      description: Requires Heartbeat or Admin role.
       tags: [Heartbeat]
       security:
         - bearerAuth: []
@@ -1432,8 +1432,11 @@ paths:
   /api/v1/micro/system/ca-cert:
     get:
       operationId: getCaCert
-      summary: Download the root CA certificate for local MITM proxy interception [Public]
+      summary: Download the root CA certificate for local MITM proxy interception [Private]
+      description: Requires System or Admin role.
       tags: [System]
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: Raw CA certificate file (.crt / .pem format)
@@ -1523,6 +1526,7 @@ paths:
     post:
       operationId: postAuthorizedUpdate
       summary: Broadcast a AuthorizedUpdate using a delegated hot key [Private]
+      description: Requires Heartbeat or Admin role.
       tags: [Heartbeat]
       security:
         - bearerAuth: []
