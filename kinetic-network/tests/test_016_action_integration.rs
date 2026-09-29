@@ -1,7 +1,7 @@
 use kinetic_core::types::NameEnvelope;
 use kinetic_local::action::GLOBAL_ACTION_STATE;
 
-use kinetic_network::store::core::KineticRecordStore;
+use kinetic_network::store::kademlia::KineticRecordStore;
 use libp2p::identity;
 use libp2p::kad::Record;
 

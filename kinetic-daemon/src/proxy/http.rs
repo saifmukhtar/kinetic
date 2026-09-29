@@ -297,7 +297,7 @@ pub async fn forward_to_backend_direct(
                     "CNAME points to external Web2 domain {}. Handing off to Web2 Bridge.",
                     target
                 );
-                return crate::proxy::web2_bridge::forward_to_web2_backend(req, &target).await;
+                return crate::proxy::external_http::forward_to_web2_backend(req, &target).await;
             }
         }
 

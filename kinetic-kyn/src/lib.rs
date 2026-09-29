@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 pub mod math;
 pub mod types;
 

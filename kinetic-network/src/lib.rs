@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! # kinetic-network (Layer 7 Trunk)
 //!
 //! The massive P2P networking trunk of the Kinetic workspace.
@@ -55,3 +56,9 @@ pub use client::{NetworkClient, NetworkConfig, NetworkMode, ProxyRequest, ProxyR
 pub use error::KineticStoreError;
 pub use event_loop::NetworkEventLoop;
 pub mod peer_registry;
+
+// Re-exported network primitives to decouple upper layers from libp2p directly.
+pub use libp2p::PeerId;
+pub use libp2p::identity::Keypair;
+pub use libp2p::gossipsub::MessageId;
+

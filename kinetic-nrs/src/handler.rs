@@ -4,7 +4,7 @@ use hickory_server::authority::MessageResponseBuilder;
 use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 
 use crate::KineticNrsHandler;
-use crate::kinetic_records::resolve_kinetic;
+use crate::records::resolve_kinetic;
 use crate::upstream::resolve_upstream;
 
 #[async_trait::async_trait]

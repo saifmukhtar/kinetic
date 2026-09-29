@@ -1,4 +1,4 @@
-use kinetic_network::event_loop::core::NetworkEventLoop;
+use kinetic_network::event_loop::reactor::NetworkEventLoop;
 use proptest::prelude::*;
 
 proptest! {

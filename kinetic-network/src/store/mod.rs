@@ -26,7 +26,7 @@
 /// Store constants.
 pub(crate) mod constants;
 /// The core store implementation.
-pub mod core;
+pub mod kademlia;
 pub(crate) mod handlers;
 /// Store validation logic.
 pub(crate) mod verification;
@@ -37,4 +37,4 @@ mod handlers_tests;
 #[cfg(test)]
 mod verification_tests;
 
-pub use self::core::KineticRecordStore;
+pub use self::kademlia::KineticRecordStore;

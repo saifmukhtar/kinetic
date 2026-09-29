@@ -119,7 +119,7 @@ pub(crate) fn is_routable_multiaddr(
     true
 }
 
-impl super::core::NetworkEventLoop {
+impl super::reactor::NetworkEventLoop {
     /// Resolves conflicts when multiple records are found for the same Kademlia key.
     pub fn xor_tie_breaker(
         query_name: &str,
@@ -401,7 +401,7 @@ impl super::core::NetworkEventLoop {
 #[cfg(test)]
 mod tests {
 
-    use crate::event_loop::core::NetworkEventLoop;
+    use crate::event_loop::reactor::NetworkEventLoop;
     use kinetic_core::types::{Reveal, VdfProof};
 
     fn make_mock_reveal(proof_first_byte: u8) -> Vec<u8> {

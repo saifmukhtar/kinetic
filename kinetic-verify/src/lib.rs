@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! # kinetic-verify
 //!
 //! **Layer 4: Verification & Domain Rules**

@@ -6,7 +6,7 @@ use super::edge;
 #[cfg(not(target_arch = "wasm32"))]
 use super::router;
 
-impl super::core::NetworkEventLoop {
+impl super::reactor::NetworkEventLoop {
     /// Initializes a new P2P Swarm and returns the client handle and the event loop.
     #[allow(clippy::type_complexity)]
     pub fn new(
@@ -30,6 +30,10 @@ impl super::core::NetworkEventLoop {
         >,
         vdf_engine: Arc<dyn kinetic_core::traits::VdfEngine>,
     ) -> std::result::Result<(NetworkClient, Self), anyhow::Error> {
+        // Ensure the default crypto provider is installed for TLS/QUIC connections.
+        // It's safe to ignore the error if it was already installed by a host application.
+        let _ = rustls::crypto::ring::default_provider().install_default();
+
         let (tx, rx) = mpsc::channel(32);
 
         let (mut swarm, client) = if config.mode == NetworkMode::Edge {

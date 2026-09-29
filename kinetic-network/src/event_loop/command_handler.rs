@@ -6,7 +6,7 @@ use kinetic_core::error::{NetworkClientError, PublishError, ResolutionError};
 use libp2p::kad;
 use libp2p::kad::store::RecordStore;
 
-impl super::core::NetworkEventLoop {
+impl super::reactor::NetworkEventLoop {
     fn enqueue_dht_puts(
         &mut self,
         name: std::sync::Arc<str>,
@@ -51,7 +51,7 @@ impl super::core::NetworkEventLoop {
                 Ok(query_id) => {
                     self.query_id_to_name.insert(
                         query_id,
-                        crate::event_loop::core::QueryType::Put(name.clone()),
+                        crate::event_loop::reactor::QueryType::Put(name.clone()),
                     );
                     expected += 1;
                 }
@@ -81,7 +81,7 @@ impl super::core::NetworkEventLoop {
         &mut self,
         name: std::sync::Arc<str>,
         keys: Vec<[u8; 32]>,
-        query_type_ctor: fn(std::sync::Arc<str>) -> crate::event_loop::core::QueryType,
+        query_type_ctor: fn(std::sync::Arc<str>) -> crate::event_loop::reactor::QueryType,
     ) -> usize {
         let mut expected = 0;
         for key_bytes in keys {
@@ -149,7 +149,7 @@ impl super::core::NetworkEventLoop {
                 let expected = self.dispatch_dht_queries(
                     hb_name.clone(),
                     keys,
-                    crate::event_loop::core::QueryType::Get,
+                    crate::event_loop::reactor::QueryType::Get,
                 );
 
                 self.pending_gets.insert(
@@ -219,7 +219,7 @@ impl super::core::NetworkEventLoop {
                 let expected = self.dispatch_dht_queries(
                     name.clone(),
                     keys,
-                    crate::event_loop::core::QueryType::Get,
+                    crate::event_loop::reactor::QueryType::Get,
                 );
 
                 self.pending_gets.insert(
@@ -260,7 +260,7 @@ impl super::core::NetworkEventLoop {
                 let expected = self.dispatch_dht_queries(
                     name.clone(),
                     keys,
-                    crate::event_loop::core::QueryType::Quorum,
+                    crate::event_loop::reactor::QueryType::Quorum,
                 );
 
                 self.pending_quorums.insert(

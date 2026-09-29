@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! # kinetic-nrs
 //!
 //! DNS resolution layer for the Kinetic `.kin` naming network.
@@ -21,7 +22,7 @@
 
 pub mod cache;
 pub mod handler;
-pub mod kinetic_records;
+pub mod records;
 pub mod upstream;
 
 use hickory_resolver::TokioAsyncResolver;

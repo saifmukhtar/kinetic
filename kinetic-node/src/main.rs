@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! # kinetic-node (Layer 8: Public Infrastructure)
 //!
 //! The Kinetic public infrastructure node executable (`kinetic-node`).

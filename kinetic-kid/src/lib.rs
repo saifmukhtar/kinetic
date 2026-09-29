@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! # kinetic-kid
 //!
 //! Kinetic Identity Documents (KIDs) — the self-sovereign identity layer.

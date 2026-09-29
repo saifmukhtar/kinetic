@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::store::core::KineticRecordStore;
+    use crate::store::kademlia::KineticRecordStore;
     use kinetic_core::types::{Reveal, VdfProof};
     use kinetic_storage::KineticStorage;
     use libp2p::PeerId;

@@ -11,7 +11,7 @@ use std::sync::Arc;
 /// Starts the background telemetry loop that occasionally broadcasts
 /// opt-in, anonymous network metrics over `GOSSIP_TOPIC_GLOBAL`.
 pub fn start_telemetry_service(
-    network_client: crate::client::core::NetworkClient,
+    network_client: crate::client::handle::NetworkClient,
     kyn_provider: Arc<dyn KynProvider>,
     config: KineticConfig,
     node_type: PeerType,

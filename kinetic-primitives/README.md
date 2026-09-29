@@ -33,7 +33,7 @@ Under the hood, this crate currently implements:
 To fully understand this crate, we recommend reading it in the following order:
 
 ### Prerequisites
-* None. As Layer 1, this crate is the absolute foundation and depends on no prior Kinetic domain knowledge.
+* None. As Layer 0, this crate is the absolute foundation and depends on no prior Kinetic domain knowledge.
 
 ### File Traversal (Leaf-First)
 Do not read this crate top-to-bottom. Read it in this order:
@@ -42,5 +42,5 @@ Do not read this crate top-to-bottom. Read it in this order:
 3. `src/lib.rs` - The root orchestrator that exports the unified cryptographic interface, hashing functions, and the `verify_keypair` math boundary.
 
 ## 5. Taxonomy & Links
-* **Taxonomy:** This crate belongs to Layer 1. Please read [`./LAYER_1.md`](./LAYER_1.md) to understand the strict architectural constraints of this layer.
+* **Taxonomy:** This crate belongs to Layer 0. Please read [`./LAYER_0.md`](./LAYER_0.md) to understand the strict architectural constraints of this layer.
 * **Repository:** [Kinetic Network GitHub](https://github.com/saifmukhtar/kinetic)

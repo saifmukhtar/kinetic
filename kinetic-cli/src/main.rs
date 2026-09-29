@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! # kinetic-cli (Layer 9: User Interface)
 //!
 //! The command-line interface for the Kinetic workspace (`kinetic`).

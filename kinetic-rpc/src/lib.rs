@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! # kinetic-rpc
 //!
 //! The HTTP serialization boundary and request-tracing framework for the Kinetic Network.

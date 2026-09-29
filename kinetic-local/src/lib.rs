@@ -1,3 +1,4 @@
+#![doc = include_str!("../CONTRACT.md")]
 //! # kinetic-local
 //!
 //! Local file system and OS environment abstractions for the Kinetic Network.

@@ -1,7 +1,7 @@
-//! Serialization adapters for Layer 1 public keys.
+//! Serialization adapters for Layer 0 public keys.
 //!
 //! This module provides `serde` adapters for the strict taxonomy keys defined in `kinetic-primitives`.
-//! We use a custom adapter pattern here to keep `serde` strictly out of Layer 1, preventing the accidental
+//! We use a custom adapter pattern here to keep `serde` strictly out of Layer 0, preventing the accidental
 //! serialization of private keys.
 
 use kinetic_primitives::keypairs::{
