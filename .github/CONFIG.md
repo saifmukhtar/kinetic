@@ -25,9 +25,9 @@ Settings related to local services, storage, and the HTTP API.
   * UDP port for querying the Kinetic Atlas Bridge daemon (Default: `34291`).
 
 * **`bind_ip`** (👁️ *Hidden by default*)
-  * Local IP address to bind to for daemon services (Default: `127.0.0.2`).
+  * Local IP address to bind to for daemon services (Default: `127.0.255.2`).
 * **`pac_bind_ip`** (👁️ *Hidden by default*)
-  * IP address used by the PAC script and the proxy (Default: `127.0.0.2`).
+  * IP address used by the PAC script and the proxy (Default: `127.0.255.2`).
 * **`api_port`** (👁️ *Hidden by default*)
   * Port for the daemon's authenticated HTTP API (Default: `16002`).
 * **`proxy_port`** (👁️ *Hidden by default*)

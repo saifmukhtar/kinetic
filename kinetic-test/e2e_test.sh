@@ -74,7 +74,7 @@ echo "Waiting for propagation..."
 sleep 2
 
 echo "Querying DNS loopback on port 10056..."
-DIG_OUT=$(dig @127.0.0.2 -p 10056 e2e.kin +short)
+DIG_OUT=$(dig @127.0.255.2 -p 10056 e2e.kin +short)
 
 echo "DNS returned: $DIG_OUT"
 

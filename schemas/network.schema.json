@@ -31,7 +31,7 @@
         },
         "local_bind_ip": {
           "type": "string",
-          "default": "127.0.0.2"
+          "default": "127.0.255.2"
         },
         "bootstrap_nodes": {
           "type": "array",
