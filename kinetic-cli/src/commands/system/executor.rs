@@ -109,7 +109,7 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
     let (subcommand, mut extra_args) = match cmd {
         ServiceCommands::Install => {
             let mut args = vec![];
-            if binary.ends_with("-daemon") {
+            if binary.ends_with("-daemon") || binary.ends_with("-host") || binary.ends_with("-node") {
                 let current_user = std::env::var("USER").unwrap_or_else(|_| "root".to_string());
                 let base_dir = kinetic_local::config::base_dir();
                 args.push("--user".to_string());
@@ -142,7 +142,7 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
         .unwrap_or(false);
 
     if !binary_found {
-        let role_hint = if binary.ends_with("-daemon") {
+        let role_hint = if binary.ends_with("-daemon") || binary.ends_with("-host") || binary.ends_with("-node") {
             format!(
                 "manage {} names and run the local P2P proxy",
                 kinetic_core::constants::NSP_SUFFIX
@@ -184,7 +184,7 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
     // DNS requires root — warn the user before asking for their password.
     
     let mut actual_needs_sudo = needs_sudo;
-    if binary.ends_with("-daemon") && matches!(cmd, ServiceCommands::Install | ServiceCommands::Uninstall | ServiceCommands::Start | ServiceCommands::Stop) {
+    if (binary.ends_with("-daemon") || binary.ends_with("-host") || binary.ends_with("-node")) && matches!(cmd, ServiceCommands::Install | ServiceCommands::Uninstall | ServiceCommands::Start | ServiceCommands::Stop) {
         if std::env::var("USER").unwrap_or_default() != "root" {
             actual_needs_sudo = true;
         }

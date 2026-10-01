@@ -68,7 +68,12 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Install the host as a system service
-    Install,
+    Install {
+        #[arg(long)]
+        user: Option<String>,
+        #[arg(long)]
+        config_dir: Option<String>,
+    },
     /// Uninstall the host system service
     Uninstall,
     /// Start the host (foreground)
@@ -88,7 +93,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
-        Some(Commands::Install) => service::install_service()?,
+        Some(Commands::Install { user, config_dir }) => service::install_service(user.clone(), config_dir.clone())?,
         Some(Commands::Uninstall) => service::uninstall_service()?,
         Some(Commands::Start) => service::start_background_service()?,
         Some(Commands::Stop) => service::stop_background_service()?,

@@ -15,7 +15,7 @@ use std::env;
 /// # Errors
 /// Returns an error if the native service manager cannot be detected, the
 /// executable path cannot be resolved, or the service installation fails.
-pub fn install_service() -> Result<()> {
+pub fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> Result<()> {
     println!("Installing Kinetic Host service...");
     let label: ServiceLabel = format!("{}-host", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native().map_err(|_| {
@@ -39,9 +39,7 @@ pub fn install_service() -> Result<()> {
                 ))
             })?],
             contents: None,
-            username: std::env::var("SUDO_USER")
-                .ok()
-                .or_else(|| Some("nobody".to_string())),
+            username: user.or_else(|| Some("nobody".to_string())),
             working_directory: None,
             environment: None,
             autostart: true,

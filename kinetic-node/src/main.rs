@@ -55,7 +55,12 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Install the node as a system service
-    Install,
+    Install {
+        #[arg(long)]
+        user: Option<String>,
+        #[arg(long)]
+        config_dir: Option<String>,
+    },
     /// Uninstall the node system service
     Uninstall,
     /// Start the node (foreground)
@@ -66,7 +71,7 @@ enum Commands {
     Stop,
 }
 
-fn install_service() -> Result<()> {
+fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> Result<()> {
     println!("Installing Kinetic Node service...");
     let label: ServiceLabel = format!("{}-node", kinetic_core::constants::NSP).parse()?;
     let manager = <dyn ServiceManager>::native().map_err(|_| {
@@ -80,9 +85,7 @@ fn install_service() -> Result<()> {
         program: current_exe.clone(),
         args: vec!["run".into()],
         contents: None,
-        username: std::env::var("SUDO_USER")
-            .ok()
-            .or_else(|| Some("nobody".to_string())),
+        username: user.or_else(|| Some("nobody".to_string())),
         working_directory: None,
         environment: None,
         autostart: true,
@@ -137,8 +140,8 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
-        Some(Commands::Install) => {
-            install_service()?;
+        Some(Commands::Install { user, config_dir }) => {
+            install_service(user.clone(), config_dir.clone())?;
         }
         Some(Commands::Uninstall) => {
             uninstall_service()?;
