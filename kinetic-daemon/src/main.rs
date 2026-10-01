@@ -119,7 +119,7 @@ fn trust_ca(cert_path: &std::path::Path) -> Result<()> {
 }
 
 fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> Result<()> {
-    user = user.or_else(|| std::env::var("SUDO_USER").ok());
+    // SUDO_USER guessing removed. Relying strictly on explicit args from kinetic-cli orchestrator.
     let base_config_dir = if let Some(dir) = config_dir_opt {
         std::path::PathBuf::from(dir)
     } else {

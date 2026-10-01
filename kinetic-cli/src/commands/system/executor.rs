@@ -106,8 +106,19 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
     }
 
     // Map ServiceCommands → the argv the target binary understands.
-    let (subcommand, extra_args) = match cmd {
-        ServiceCommands::Install => ("install", vec![]),
+    let (subcommand, mut extra_args) = match cmd {
+        ServiceCommands::Install => {
+            let mut args = vec![];
+            if binary.ends_with("-daemon") {
+                let current_user = std::env::var("USER").unwrap_or_else(|_| "root".to_string());
+                let base_dir = kinetic_local::config::base_dir();
+                args.push("--user".to_string());
+                args.push(current_user);
+                args.push("--config-dir".to_string());
+                args.push(base_dir.to_string_lossy().to_string());
+            }
+            ("install", args)
+        }
         ServiceCommands::Uninstall => ("uninstall", vec![]),
         ServiceCommands::Run => ("run", vec![]),
         ServiceCommands::Start => ("start", vec![]),
@@ -171,7 +182,15 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
     }
 
     // DNS requires root — warn the user before asking for their password.
-    if needs_sudo {
+    
+    let mut actual_needs_sudo = needs_sudo;
+    if binary.ends_with("-daemon") && matches!(cmd, ServiceCommands::Install | ServiceCommands::Uninstall | ServiceCommands::Start | ServiceCommands::Stop) {
+        if std::env::var("USER").unwrap_or_default() != "root" {
+            actual_needs_sudo = true;
+        }
+    }
+
+    if actual_needs_sudo {
         eprintln!();
         eprintln!("  Note: The Kinetic DNS server binds to port 53, which requires");
         eprintln!("        administrator / root access. You may be prompted for your password.");
@@ -179,7 +198,7 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
     }
 
     // Build and exec the final command.
-    let status = if needs_sudo && cfg!(unix) {
+    let status = if actual_needs_sudo && cfg!(unix) {
         std::process::Command::new("sudo")
             .arg(binary)
             .arg(subcommand)
