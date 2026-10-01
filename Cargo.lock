@@ -3001,6 +3001,7 @@ dependencies = [
  "rand_core 0.10.1",
  "reqwest",
  "rustc-hash",
+ "rustls 0.23.45",
  "serde",
  "serde_json",
  "tempfile",

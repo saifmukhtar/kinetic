@@ -49,7 +49,6 @@ pub enum ServicesCommand {
 pub async fn handle_services_command(
     cmd: ServicesCommand,
     config: &kinetic_core::config::KineticConfig,
-    client: &reqwest::Client,
 ) -> anyhow::Result<()> {
     match cmd {
         ServicesCommand::Daemon { cmd } => {
@@ -72,10 +71,25 @@ pub async fn handle_services_command(
             let bin = format!("{}-pac", kinetic_core::constants::NSP);
             executor::handle_service_command(&bin, cmd, false).await
         }
-        ServicesCommand::Health => health::handle_health(config, client).await,
-        ServicesCommand::Restart => system_ctrl::handle_restart(config, client).await,
-        ServicesCommand::Shutdown => system_ctrl::handle_shutdown(config, client).await,
-        ServicesCommand::Config => config_ctrl::handle_config(config, client).await,
-        ServicesCommand::CaCert => system_ctrl::handle_ca_cert(config, client).await,
+        ServicesCommand::Health => {
+            let client = crate::utils::build_client(30)?;
+            health::handle_health(config, &client).await
+        }
+        ServicesCommand::Restart => {
+            let client = crate::utils::build_client(30)?;
+            system_ctrl::handle_restart(config, &client).await
+        }
+        ServicesCommand::Shutdown => {
+            let client = crate::utils::build_client(30)?;
+            system_ctrl::handle_shutdown(config, &client).await
+        }
+        ServicesCommand::Config => {
+            let client = crate::utils::build_client(30)?;
+            config_ctrl::handle_config(config, &client).await
+        }
+        ServicesCommand::CaCert => {
+            let client = crate::utils::build_client(30)?;
+            system_ctrl::handle_ca_cert(config, &client).await
+        }
     }
 }

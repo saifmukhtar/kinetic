@@ -102,8 +102,7 @@ async fn main() -> anyhow::Result<()> {
             commands::auth::handle_auth_command(cmd, &config, &client).await?;
         }
         Commands::System { cmd } => {
-            let client = utils::build_client(30)?;
-            commands::system::handle_services_command(cmd, &config, &client).await?;
+            commands::system::handle_services_command(cmd, &config).await?;
         }
     }
 
