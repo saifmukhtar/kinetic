@@ -11,7 +11,11 @@ use tracing::{info, warn};
 #[derive(Subcommand)]
 pub enum SeedCommands {
     /// Generate a new root seed phrase and derive the node identity
-    Init,
+    Init {
+        /// Skip interactive verification and output the raw seed phrase
+        #[arg(long)]
+        non_interactive: bool,
+    },
     /// Restore the node identity from an existing seed phrase
     Restore,
 }
@@ -27,7 +31,7 @@ pub enum SeedCommands {
 pub async fn handle_seed_command(cmd: SeedCommands) -> anyhow::Result<()> {
     let identity_path = base_dir().join("identity.key");
     match cmd {
-        SeedCommands::Init => {
+        SeedCommands::Init { non_interactive } => {
             let mut entropy = [0u8; 32];
             fill(&mut entropy)
                 .map_err(|e| anyhow::anyhow!("Failed to generate random entropy: {}", e))?;
@@ -35,39 +39,43 @@ pub async fn handle_seed_command(cmd: SeedCommands) -> anyhow::Result<()> {
                 .map_err(|e| anyhow::anyhow!("Failed to generate mnemonic: {}", e))?;
             let phrase = mnemonic.to_string();
 
-            println!("========================================================");
-            println!("🚨 NEW IDENTITY CREATED - BACKUP IMMEDIATELY 🚨");
-            println!("========================================================");
-            println!("Write down this 24-word seed phrase and store it safely:\n");
-            println!("{}", phrase);
-            println!("\nWARNING: This is a one-way derivation. You will NEVER");
-            println!("be able to view this phrase again.");
-            println!("========================================================");
+            if non_interactive {
+                println!("{}", phrase);
+            } else {
+                println!("========================================================");
+                println!("🚨 NEW IDENTITY CREATED - BACKUP IMMEDIATELY 🚨");
+                println!("========================================================");
+                println!("Write down this 24-word seed phrase and store it safely:\n");
+                println!("{}", phrase);
+                println!("\nWARNING: This is a one-way derivation. You will NEVER");
+                println!("be able to view this phrase again.");
+                println!("========================================================");
 
-            let words: Vec<&str> = phrase.split_whitespace().collect();
-            let idx1 = (entropy[0] % 24) as usize;
-            let mut idx2 = (entropy[1] % 24) as usize;
-            if idx1 == idx2 {
-                idx2 = (idx2 + 1) % 24;
-            }
+                let words: Vec<&str> = phrase.split_whitespace().collect();
+                let idx1 = (entropy[0] % 24) as usize;
+                let mut idx2 = (entropy[1] % 24) as usize;
+                if idx1 == idx2 {
+                    idx2 = (idx2 + 1) % 24;
+                }
 
-            loop {
-                use std::io::Write;
-                print!("\nTo verify your backup, please enter word #{}: ", idx1 + 1);
-                std::io::stdout().flush().unwrap();
-                let mut input1 = String::new();
-                std::io::stdin().read_line(&mut input1).unwrap();
+                loop {
+                    use std::io::Write;
+                    print!("\nTo verify your backup, please enter word #{}: ", idx1 + 1);
+                    std::io::stdout().flush().unwrap();
+                    let mut input1 = String::new();
+                    std::io::stdin().read_line(&mut input1).unwrap();
 
-                print!("Please enter word #{}: ", idx2 + 1);
-                std::io::stdout().flush().unwrap();
-                let mut input2 = String::new();
-                std::io::stdin().read_line(&mut input2).unwrap();
+                    print!("Please enter word #{}: ", idx2 + 1);
+                    std::io::stdout().flush().unwrap();
+                    let mut input2 = String::new();
+                    std::io::stdin().read_line(&mut input2).unwrap();
 
-                if input1.trim() == words[idx1] && input2.trim() == words[idx2] {
-                    println!("\n✅ Seed phrase verified successfully!");
-                    break;
-                } else {
-                    println!("\n❌ Incorrect words. Please check your backup and try again.");
+                    if input1.trim() == words[idx1] && input2.trim() == words[idx2] {
+                        println!("\n✅ Seed phrase verified successfully!");
+                        break;
+                    } else {
+                        println!("\n❌ Incorrect words. Please check your backup and try again.");
+                    }
                 }
             }
 
@@ -76,7 +84,10 @@ pub async fn handle_seed_command(cmd: SeedCommands) -> anyhow::Result<()> {
                 &phrase,
                 kinetic_core::constants::NETWORK_SALT,
             )?;
-            info!("Identity derived and saved to {:?}", identity_path);
+            
+            if !non_interactive {
+                info!("Identity derived and saved to {:?}", identity_path);
+            }
         }
         SeedCommands::Restore => {
             let phrase = rpassword::prompt_password("Enter your 24-word seed phrase: ")

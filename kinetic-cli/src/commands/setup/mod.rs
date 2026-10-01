@@ -32,7 +32,9 @@ pub async fn handle_setup_command(cmd: SetupCommand) -> anyhow::Result<()> {
 
     // 1. Generate identity
     println!("Step 1: Generating your Node Identity");
-    crate::commands::seed::handle_seed_command(crate::commands::seed::SeedCommands::Init).await?;
+    crate::commands::seed::handle_seed_command(crate::commands::seed::SeedCommands::Init {
+        non_interactive: false,
+    }).await?;
 
     // 2. Wrap up
     println!("\n========================================================");
