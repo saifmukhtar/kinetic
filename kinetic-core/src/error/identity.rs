@@ -96,7 +96,7 @@ pub enum IdentityError {
     #[error("KID private key not found: {0}")]
     KidPrivateKeyNotFound(String),
 
-    /// The public key used to sign the transaction does not match the registered owner of the name.
+    /// The public key used to sign the action does not match the registered owner of the name.
     /// You cannot modify or rotate an identity document that you do not cryptographically own.
     #[error("Public key mismatch: {0}")]
     PubkeyMismatch(String),
