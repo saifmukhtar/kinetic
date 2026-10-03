@@ -13,6 +13,7 @@ struct NetworkConfig {
 #[derive(Deserialize)]
 struct NetworkSection {
     nsp: String,
+    local_bind_ip: String,
 }
 
 #[derive(Deserialize)]
@@ -69,6 +70,10 @@ fn main() {
     out.push_str(&format!(
         "pub const NETWORK_SALT: [u8; 32] = {:?};\n",
         prod_salt.as_slice()
+    ));
+    out.push_str(&format!(
+        "pub const LOCAL_BIND_IP: &str = \"{}\";\n",
+        config.network.local_bind_ip
     ));
 
     fs::write(&dest_path, out).expect("Failed to write env_constants.rs");
