@@ -1,0 +1,19 @@
+[package]
+name = "kinetic-env"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Lightweight environment and path resolution SDK for the Kinetic network"
+
+[dependencies]
+dirs.workspace = true
+serde.workspace = true
+
+[build-dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+sha2.workspace = true
+hex.workspace = true

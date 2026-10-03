@@ -3,7 +3,7 @@ members = [
     "kinetic-action",
     "kinetic-cli",
     "kinetic-core",
-    "kinetic-daemon",
+    "kinetic-daemon", "kinetic-env",
     "kinetic-host",
     "kinetic-kid", "kinetic-kyn",
     "kinetic-local",
