@@ -22,13 +22,15 @@ pub const DEFAULT_PAC_PORT: u16 = 8081;
 /// Returns the base directory where the local Kinetic node stores its data.
 /// 
 /// Resolution:
-/// - Linux: `~/.local/share/<nsp>-<salt_prefix>/`
-/// - Windows: `%APPDATA%/<nsp>-<salt_prefix>/`
-/// - macOS: `~/Library/Application Support/<nsp>-<salt_prefix>/`
+/// - Linux: `~/.local/share/kinetic/networks/<nsp>-<salt_prefix>/`
+/// - Windows: `%APPDATA%/kinetic/networks/<nsp>-<salt_prefix>/`
+/// - macOS: `~/Library/Application Support/kinetic/networks/<nsp>-<salt_prefix>/`
 pub fn get_base_dir() -> PathBuf {
-    let mut path = dirs::data_local_dir().expect("Could not find local data directory");
-    path.push(format!("{}-{}", NSP, SALT_PREFIX));
-    path
+    dirs::data_local_dir()
+        .expect("Could not find local data directory")
+        .join("kinetic")
+        .join("networks")
+        .join(format!("{}-{}", NSP, SALT_PREFIX))
 }
 
 /// Returns the file path of the master ed25519 identity key.
