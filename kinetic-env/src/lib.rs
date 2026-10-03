@@ -11,13 +11,13 @@ use std::path::PathBuf;
 include!(concat!(env!("OUT_DIR"), "/env_constants.rs"));
 
 /// The default port for the local HTTP API (so tools know where to fetch data)
-pub const DEFAULT_API_PORT: u16 = 1420;
+pub const DEFAULT_API_PORT: u16 = 16002;
 
 /// The default port for the local DNS/Proxy resolver
-pub const DEFAULT_PROXY_PORT: u16 = 8080;
+pub const DEFAULT_PROXY_PORT: u16 = 17001;
 
 /// The default port for the PAC server
-pub const DEFAULT_PAC_PORT: u16 = 8081;
+pub const DEFAULT_PAC_PORT: u16 = 16001;
 
 /// Returns the base directory where the local Kinetic node stores its data.
 /// 
@@ -45,5 +45,5 @@ pub fn get_config_path() -> PathBuf {
 
 /// Returns the directory where the RocksDB/Sled data zone is stored.
 pub fn get_db_dir() -> PathBuf {
-    get_base_dir().join("data")
+    get_base_dir().join("db")
 }
