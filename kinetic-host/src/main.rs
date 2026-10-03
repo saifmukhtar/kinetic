@@ -99,7 +99,7 @@ async fn main() -> Result<()> {
         Some(Commands::Stop) => service::stop_background_service()?,
         Some(Commands::Port { port }) => configure_port(*port).await?,
         Some(Commands::Id) => {
-            let key_path = kinetic_local::config::base_dir().join("host.key");
+            let key_path = kinetic_local::config::nsp_dir().join("host.key");
             let host_key = host_key::load_or_generate_host_key(&key_path);
             let host_peer_id = libp2p::PeerId::from_public_key(&host_key.public());
             println!("============================================================");
@@ -137,7 +137,7 @@ async fn run_host() -> Result<()> {
     info!("Starting Kinetic Node (Infrastructure Mode)...");
 
     // 2. Initialize embedded storage
-    let base_config_dir = kinetic_local::config::base_dir();
+    let base_config_dir = kinetic_local::config::nsp_dir();
     let storage_dir = base_config_dir.join(&config.peer.storage_dir);
     std::fs::create_dir_all(&storage_dir)?;
 
@@ -166,7 +166,7 @@ async fn run_host() -> Result<()> {
     let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
 
     // 4. Load Static Network Identity (The Permanent Host Key)
-    let key_path = kinetic_local::config::base_dir().join("host.key");
+    let key_path = kinetic_local::config::nsp_dir().join("host.key");
     let host_key = host_key::load_or_generate_host_key(&key_path);
     let host_peer_id = libp2p::PeerId::from_public_key(&host_key.public());
     info!("Infrastructure Node static Host Identity: {}", host_peer_id);
@@ -389,7 +389,7 @@ async fn run_host() -> Result<()> {
         .bind_ip
         .parse::<std::net::IpAddr>()
         .unwrap_or(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)));
-    let network_dir = kinetic_local::config::base_dir();
+    let network_dir = kinetic_local::config::nsp_dir();
     api::start_health_api(host_peer_id, bind_ip, network_dir).await?;
 
     Ok(())

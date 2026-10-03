@@ -633,7 +633,7 @@ pub async fn handle_publish_zone(
         })?;
 
     // 3. Load the daemon keypair and re-sign with the updated payload
-    let identity_path = kinetic_local::config::base_dir().join("identity.key");
+    let identity_path = kinetic_local::config::nsp_dir().join("identity.key");
     let keypair =
         tokio::task::spawn_blocking(move || kinetic_local::identity::load_keypair(&identity_path))
             .await

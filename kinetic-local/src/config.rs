@@ -11,7 +11,7 @@ pub fn load_config() -> KineticConfig {
 pub fn load_config_ctx(_ctx: ConfigContext) -> KineticConfig {
     let config_path = std::env::var(kinetic_core::constants::ENV_CONFIG)
         .map(PathBuf::from)
-        .unwrap_or_else(|_| base_dir().join("config.toml"));
+        .unwrap_or_else(|_| nsp_dir().join("config.toml"));
 
     let config = match fs::read_to_string(&config_path) {
         Ok(config_str) => match toml::from_str(&config_str) {
@@ -93,7 +93,7 @@ pub fn load_config_ctx(_ctx: ConfigContext) -> KineticConfig {
 pub fn save_config(config: &KineticConfig) -> Result<(), kinetic_core::error::ConfigError> {
     let config_path = std::env::var(kinetic_core::constants::ENV_CONFIG)
         .map(PathBuf::from)
-        .unwrap_or_else(|_| base_dir().join("config.toml"));
+        .unwrap_or_else(|_| nsp_dir().join("config.toml"));
 
     if let Some(parent) = config_path.parent() {
         fs::create_dir_all(parent).map_err(|e| {
@@ -108,10 +108,32 @@ pub fn save_config(config: &KineticConfig) -> Result<(), kinetic_core::error::Co
 }
 
 pub fn zones_dir() -> PathBuf {
-    base_dir().join("zones")
+    nsp_dir().join("zones")
 }
 
 pub fn base_dir() -> PathBuf {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        dirs::data_local_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("kinetic")
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        PathBuf::from("/kinetic")
+    }
+}
+
+pub fn networks_dir() -> PathBuf {
+    base_dir().join("networks")
+}
+
+pub fn pac_dir() -> PathBuf {
+    base_dir().join("pac_router")
+}
+
+pub fn nsp_dir() -> PathBuf {
     if let Ok(path) = std::env::var(kinetic_core::constants::ENV_DATA) {
         return PathBuf::from(path);
     }
@@ -119,21 +141,9 @@ pub fn base_dir() -> PathBuf {
     let salt_prefix = &kinetic_core::constants::NETWORK_SALT_HEX[0..4];
     let network_dir = format!("{}-{}", kinetic_core::constants::NSP, salt_prefix);
 
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        dirs::data_local_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("kinetic")
-            .join("networks")
-            .join(network_dir)
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        PathBuf::from(format!("/kinetic/networks/{}", network_dir))
-    }
+    networks_dir().join(network_dir)
 }
 
 pub fn api_tokens_dir() -> PathBuf {
-    base_dir().join("tokens")
+    nsp_dir().join("tokens")
 }

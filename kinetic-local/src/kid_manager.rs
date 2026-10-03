@@ -91,9 +91,9 @@ pub struct LocalKidSummary {
     pub deactivated: bool,
 }
 
-/// Returns the canonical directory where local KID documents and keys are stored (`{base_dir}/kids/`).
+/// Returns the canonical directory where local KID documents and keys are stored (`{nsp_dir}/kids/`).
 pub fn kids_dir() -> PathBuf {
-    crate::config::base_dir().join("kids")
+    crate::config::nsp_dir().join("kids")
 }
 
 pub struct KidPaths {

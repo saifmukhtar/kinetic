@@ -29,21 +29,31 @@ pub fn get_base_dir() -> PathBuf {
     dirs::data_local_dir()
         .expect("Could not find local data directory")
         .join("kinetic")
-        .join("networks")
-        .join(format!("{}-{}", NSP, SALT_PREFIX))
+}
+
+pub fn get_networks_dir() -> PathBuf {
+    get_base_dir().join("networks")
+}
+
+pub fn get_pac_dir() -> PathBuf {
+    get_base_dir().join("pac_router")
+}
+
+pub fn get_nsp_dir() -> PathBuf {
+    get_networks_dir().join(format!("{}-{}", NSP, SALT_PREFIX))
 }
 
 /// Returns the file path of the master ed25519 identity key.
 pub fn get_identity_key_path() -> PathBuf {
-    get_base_dir().join("identity.key")
+    get_nsp_dir().join("identity.key")
 }
 
 /// Returns the file path of the daemon configuration file.
 pub fn get_config_path() -> PathBuf {
-    get_base_dir().join("config.toml")
+    get_nsp_dir().join("config.toml")
 }
 
 /// Returns the directory where the RocksDB/Sled data zone is stored.
 pub fn get_db_dir() -> PathBuf {
-    get_base_dir().join("db")
+    get_nsp_dir().join("db")
 }

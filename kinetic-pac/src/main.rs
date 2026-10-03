@@ -355,10 +355,7 @@ fn uninstall_service() -> anyhow::Result<()> {
     manager.uninstall(ServiceUninstallCtx { label })?;
 
     // Also remove OS settings just in case it's currently installed
-    let base_dir = dirs::data_local_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("kinetic")
-        .join("pac_router");
+    let base_dir = kinetic_local::config::pac_dir();
     let pac_manager = PacManager::new(&base_dir);
     let _ = pac_manager.uninstall();
 
@@ -493,10 +490,7 @@ pub fn build_pac_script(base_dir: &std::path::Path) -> String {
 async fn run_server() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    let base_dir = dirs::data_local_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("kinetic")
-        .join("pac_router");
+    let base_dir = kinetic_local::config::pac_dir();
 
     std::fs::create_dir_all(&base_dir)?;
 

@@ -90,7 +90,7 @@ pub async fn handle_generate_kid(
 
     let current_kyn = safe_current_kyn(&state).await;
 
-    let identity_path = kinetic_local::config::base_dir().join("identity.key");
+    let identity_path = kinetic_local::config::nsp_dir().join("identity.key");
     let res = kinetic_local::kid_manager::get_or_create_kid_for_name(
         &final_name,
         req.inherit_subname,
@@ -136,7 +136,7 @@ pub async fn handle_rotate_kid(
         ));
     }
 
-    let identity_path = kinetic_local::config::base_dir().join("identity.key");
+    let identity_path = kinetic_local::config::nsp_dir().join("identity.key");
     let rotated = kinetic_local::kid_manager::rotate_name_kid(&name, &identity_path)?;
 
     // Publish rotated document to DHT
@@ -177,7 +177,7 @@ pub async fn handle_revoke_kid(
 
     let revoked_doc = kinetic_local::kid_manager::revoke_local_kid(&name)?;
 
-    let identity_path = kinetic_local::config::base_dir().join("identity.key");
+    let identity_path = kinetic_local::config::nsp_dir().join("identity.key");
     let auth_kid =
         kinetic_local::kid_manager::authorize_kid_document(&name, &revoked_doc, &identity_path)?;
 
@@ -239,7 +239,7 @@ pub async fn handle_update_kid_manifest(
 
     let current_kyn = safe_current_kyn(&state).await;
 
-    let identity_path = kinetic_local::config::base_dir().join("identity.key");
+    let identity_path = kinetic_local::config::nsp_dir().join("identity.key");
     let (manifest, auth_manifest) = kinetic_local::kid_manager::save_and_sign_local_manifest(
         &name,
         req.services,

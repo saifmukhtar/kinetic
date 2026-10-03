@@ -3092,6 +3092,7 @@ dependencies = [
  "clap",
  "dirs 7.0.0",
  "kinetic-core",
+ "kinetic-local",
  "reqwest",
  "serde",
  "serde_json",

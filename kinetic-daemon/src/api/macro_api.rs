@@ -142,7 +142,7 @@ pub async fn handle_macro_register_name(
         // SHA-256(name‖salt‖randomness‖pubkey) — opaque to any observer during the 32-second
         // window before the reveal appears.
         update_task_status(&tasks_clone, &task_id_clone, "Generating Commitment", 20);
-        let identity_path = kinetic_local::config::base_dir().join("identity.key");
+        let identity_path = kinetic_local::config::nsp_dir().join("identity.key");
         let keypair = match kinetic_local::identity::load_keypair(&identity_path) {
             Ok(k) => k,
             Err(e) => {
@@ -281,7 +281,7 @@ pub async fn handle_macro_register_name(
             }
         };
         let current_kyn = kinetic_kyn::types::Kyn(current_kyn);
-        let identity_path = kinetic_local::config::base_dir().join("identity.key");
+        let identity_path = kinetic_local::config::nsp_dir().join("identity.key");
 
         let kid_id = match kinetic_local::kid_manager::get_or_create_kid_for_name(
             &fqdn,
@@ -523,7 +523,7 @@ pub async fn handle_macro_renew_name(
 
         // Step 3: Commitment — generate privately; broadcast AFTER VDF (Option B / C-1 fix).
         update_task_status(&tasks_clone, &task_id_clone, "Generating Commitment", 20);
-        let identity_path = kinetic_local::config::base_dir().join("identity.key");
+        let identity_path = kinetic_local::config::nsp_dir().join("identity.key");
         let keypair = match kinetic_local::identity::load_keypair(&identity_path) {
             Ok(k) => k,
             Err(e) => {

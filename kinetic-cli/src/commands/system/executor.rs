@@ -111,7 +111,7 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
             let mut args = vec![];
             if binary.ends_with("-daemon") || binary.ends_with("-host") || binary.ends_with("-node") {
                 let current_user = std::env::var("USER").unwrap_or_else(|_| "root".to_string());
-                let base_dir = kinetic_local::config::base_dir();
+                let base_dir = kinetic_local::config::nsp_dir();
                 args.push("--user".to_string());
                 args.push(current_user);
                 args.push("--config-dir".to_string());

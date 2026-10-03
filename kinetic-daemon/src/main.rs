@@ -123,7 +123,7 @@ fn install_service(mut user: Option<String>, config_dir_opt: Option<String>) -> 
     let base_config_dir = if let Some(dir) = config_dir_opt {
         std::path::PathBuf::from(dir)
     } else {
-        kinetic_local::config::base_dir()
+        kinetic_local::config::nsp_dir()
     };
     if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
         let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
@@ -290,7 +290,7 @@ async fn run_daemon() -> Result<()> {
 
     info!("Starting Kinetic Daemon (PID: {})...", std::process::id());
 
-    let base_config_dir = kinetic_local::config::base_dir();
+    let base_config_dir = kinetic_local::config::nsp_dir();
     let storage_dir = base_config_dir.join(&config.peer.storage_dir);
     std::fs::create_dir_all(&storage_dir)?;
 
@@ -425,7 +425,7 @@ async fn run_daemon() -> Result<()> {
         disable_storage_sync: false,
     };
 
-    let base_config_dir = kinetic_local::config::base_dir();
+    let base_config_dir = kinetic_local::config::nsp_dir();
     if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
         let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
         tracing::error!(
@@ -573,7 +573,7 @@ async fn run_daemon() -> Result<()> {
         kinetic_types::network::PeerType::Daemon,
     );
 
-    let base_config_dir = kinetic_local::config::base_dir();
+    let base_config_dir = kinetic_local::config::nsp_dir();
     if let Err(e) = std::fs::create_dir_all(&base_config_dir) {
         let err = kinetic_core::error::ConfigError::DirectoryCreationFailed(e.to_string());
         tracing::error!(
@@ -668,10 +668,7 @@ async fn run_daemon() -> Result<()> {
     );
 
     // Register with kinetic-pac by dropping our proxy config into the global proxies directory
-    let global_base = dirs::data_local_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("kinetic")
-        .join("pac_router");
+    let global_base = kinetic_local::config::pac_dir();
     let natives_dir = global_base.join("natives");
     let _ = std::fs::create_dir_all(&natives_dir);
 

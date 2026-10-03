@@ -194,7 +194,7 @@ pub async fn run_node() -> Result<()> {
     info!("Starting Kinetic Node (Infrastructure Mode)...");
 
     // 2. Initialize embedded storage
-    let base_config_dir = kinetic_local::config::base_dir();
+    let base_config_dir = kinetic_local::config::nsp_dir();
     let storage_dir = base_config_dir.join(&config.peer.storage_dir);
     std::fs::create_dir_all(&storage_dir)?;
 
@@ -222,7 +222,7 @@ pub async fn run_node() -> Result<()> {
     let (kyn_tx, kyn_rx) = watch::channel(initial_kyn);
 
     // 4. Load Static Network Identity
-    let key_path = kinetic_local::config::base_dir().join("node.key");
+    let key_path = kinetic_local::config::nsp_dir().join("node.key");
     let local_key = node_key::load_or_generate_key(&key_path);
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
 
