@@ -28,21 +28,24 @@ jobs:
         run: cargo build --release --workspace
       - name: Package Artifacts
         run: |
-          NETWORK_ID=$(jq -r '.network.network_id' network.json)
-          mkdir -p artifacts minimal_pkg full_pkg
+          NSP=$(jq -r '.network.nsp' network.json)
+          mkdir -p artifacts minimal_pkg full_pkg node_host_pkg
           
-          cp target/release/${NETWORK_ID}-daemon minimal_pkg/
-          cp target/release/${NETWORK_ID} minimal_pkg/
-          tar -czf artifacts/${NETWORK_ID}-minimal-linux-gnu.tar.gz -C minimal_pkg .
+          cp target/release/kinetic-daemon minimal_pkg/${NSP}-daemon
+          cp target/release/kinetic-cli minimal_pkg/${NSP}
+          cp target/release/kinetic-pac minimal_pkg/${NSP}-pac
+          tar -czf artifacts/${NSP}-minimal-linux-gnu.tar.gz -C minimal_pkg .
           
-          cp target/release/${NETWORK_ID}-daemon full_pkg/
-          cp target/release/${NETWORK_ID} full_pkg/
-          cp target/release/${NETWORK_ID}-dns full_pkg/
-          cp target/release/${NETWORK_ID}-pac full_pkg/
-          cp target/release/${NETWORK_ID}-node full_pkg/
-          cp target/release/${NETWORK_ID}-host full_pkg/
-          cp target/release/${NETWORK_ID}-keygen full_pkg/
-          tar -czf artifacts/${NETWORK_ID}-full-linux-gnu.tar.gz -C full_pkg .
+          cp target/release/kinetic-daemon full_pkg/${NSP}-daemon
+          cp target/release/kinetic-cli full_pkg/${NSP}
+          cp target/release/kinetic-nrs full_pkg/${NSP}-nrs
+          cp target/release/kinetic-pac full_pkg/${NSP}-pac
+          tar -czf artifacts/${NSP}-full-linux-gnu.tar.gz -C full_pkg .
+          
+          cp target/release/kinetic-cli node_host_pkg/${NSP}
+          cp target/release/kinetic-node node_host_pkg/${NSP}-node
+          cp target/release/kinetic-host node_host_pkg/${NSP}-host
+          tar -czf artifacts/${NSP}-node-host-linux-gnu.tar.gz -C node_host_pkg .
           
           if command -v sha256sum >/dev/null 2>&1; then
             cd artifacts && sha256sum * > checksums-linux-gnu.txt
@@ -75,21 +78,24 @@ jobs:
         run: cargo build --release --workspace --target x86_64-unknown-linux-musl
       - name: Package Artifacts
         run: |
-          NETWORK_ID=$(jq -r '.network.network_id' network.json)
-          mkdir -p artifacts minimal_pkg full_pkg
+          NSP=$(jq -r '.network.nsp' network.json)
+          mkdir -p artifacts minimal_pkg full_pkg node_host_pkg
           
-          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-daemon minimal_pkg/
-          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID} minimal_pkg/
-          tar -czf artifacts/${NETWORK_ID}-minimal-linux-musl.tar.gz -C minimal_pkg .
+          cp target/x86_64-unknown-linux-musl/release/kinetic-daemon minimal_pkg/${NSP}-daemon
+          cp target/x86_64-unknown-linux-musl/release/kinetic-cli minimal_pkg/${NSP}
+          cp target/x86_64-unknown-linux-musl/release/kinetic-pac minimal_pkg/${NSP}-pac
+          tar -czf artifacts/${NSP}-minimal-linux-musl.tar.gz -C minimal_pkg .
           
-          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-daemon full_pkg/
-          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID} full_pkg/
-          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-dns full_pkg/
-          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-pac full_pkg/
-          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-node full_pkg/
-          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-host full_pkg/
-          cp target/x86_64-unknown-linux-musl/release/${NETWORK_ID}-keygen full_pkg/
-          tar -czf artifacts/${NETWORK_ID}-full-linux-musl.tar.gz -C full_pkg .
+          cp target/x86_64-unknown-linux-musl/release/kinetic-daemon full_pkg/${NSP}-daemon
+          cp target/x86_64-unknown-linux-musl/release/kinetic-cli full_pkg/${NSP}
+          cp target/x86_64-unknown-linux-musl/release/kinetic-nrs full_pkg/${NSP}-nrs
+          cp target/x86_64-unknown-linux-musl/release/kinetic-pac full_pkg/${NSP}-pac
+          tar -czf artifacts/${NSP}-full-linux-musl.tar.gz -C full_pkg .
+          
+          cp target/x86_64-unknown-linux-musl/release/kinetic-cli node_host_pkg/${NSP}
+          cp target/x86_64-unknown-linux-musl/release/kinetic-node node_host_pkg/${NSP}-node
+          cp target/x86_64-unknown-linux-musl/release/kinetic-host node_host_pkg/${NSP}-host
+          tar -czf artifacts/${NSP}-node-host-linux-musl.tar.gz -C node_host_pkg .
           
           if command -v sha256sum >/dev/null 2>&1; then
             cd artifacts && sha256sum * > checksums-linux-musl.txt
@@ -115,21 +121,24 @@ jobs:
         run: cargo build --release --workspace
       - name: Package Artifacts
         run: |
-          NETWORK_ID=$(jq -r '.network.network_id' network.json)
-          mkdir -p artifacts minimal_pkg full_pkg
+          NSP=$(jq -r '.network.nsp' network.json)
+          mkdir -p artifacts minimal_pkg full_pkg node_host_pkg
           
-          cp target/release/${NETWORK_ID}-daemon minimal_pkg/
-          cp target/release/${NETWORK_ID} minimal_pkg/
-          tar -czf artifacts/${NETWORK_ID}-minimal-macos.tar.gz -C minimal_pkg .
+          cp target/release/kinetic-daemon minimal_pkg/${NSP}-daemon
+          cp target/release/kinetic-cli minimal_pkg/${NSP}
+          cp target/release/kinetic-pac minimal_pkg/${NSP}-pac
+          tar -czf artifacts/${NSP}-minimal-macos.tar.gz -C minimal_pkg .
           
-          cp target/release/${NETWORK_ID}-daemon full_pkg/
-          cp target/release/${NETWORK_ID} full_pkg/
-          cp target/release/${NETWORK_ID}-dns full_pkg/
-          cp target/release/${NETWORK_ID}-pac full_pkg/
-          cp target/release/${NETWORK_ID}-node full_pkg/
-          cp target/release/${NETWORK_ID}-host full_pkg/
-          cp target/release/${NETWORK_ID}-keygen full_pkg/
-          tar -czf artifacts/${NETWORK_ID}-full-macos.tar.gz -C full_pkg .
+          cp target/release/kinetic-daemon full_pkg/${NSP}-daemon
+          cp target/release/kinetic-cli full_pkg/${NSP}
+          cp target/release/kinetic-nrs full_pkg/${NSP}-nrs
+          cp target/release/kinetic-pac full_pkg/${NSP}-pac
+          tar -czf artifacts/${NSP}-full-macos.tar.gz -C full_pkg .
+          
+          cp target/release/kinetic-cli node_host_pkg/${NSP}
+          cp target/release/kinetic-node node_host_pkg/${NSP}-node
+          cp target/release/kinetic-host node_host_pkg/${NSP}-host
+          tar -czf artifacts/${NSP}-node-host-macos.tar.gz -C node_host_pkg .
           
           if command -v sha256sum >/dev/null 2>&1; then
             cd artifacts && sha256sum * > checksums-macos.txt
@@ -162,21 +171,24 @@ jobs:
       - name: Package Artifacts
         shell: bash
         run: |
-          NETWORK_ID=$(jq -r '.network.network_id' network.json)
-          mkdir -p artifacts minimal_pkg full_pkg
+          NSP=$(jq -r '.network.nsp' network.json)
+          mkdir -p artifacts minimal_pkg full_pkg node_host_pkg
           
-          cp target/release/${NETWORK_ID}-daemon.exe minimal_pkg/
-          cp target/release/${NETWORK_ID}.exe minimal_pkg/
-          (cd minimal_pkg && zip -r ../artifacts/${NETWORK_ID}-minimal-windows.zip .)
+          cp target/release/kinetic-daemon.exe minimal_pkg/${NSP}-daemon.exe
+          cp target/release/kinetic-cli.exe minimal_pkg/${NSP}.exe
+          cp target/release/kinetic-pac.exe minimal_pkg/${NSP}-pac.exe
+          (cd minimal_pkg && zip -r ../artifacts/${NSP}-minimal-windows.zip .)
           
-          cp target/release/${NETWORK_ID}-daemon.exe full_pkg/
-          cp target/release/${NETWORK_ID}.exe full_pkg/
-          cp target/release/${NETWORK_ID}-dns.exe full_pkg/
-          cp target/release/${NETWORK_ID}-pac.exe full_pkg/
-          cp target/release/${NETWORK_ID}-node.exe full_pkg/
-          cp target/release/${NETWORK_ID}-host.exe full_pkg/
-          cp target/release/${NETWORK_ID}-keygen.exe full_pkg/
-          (cd full_pkg && zip -r ../artifacts/${NETWORK_ID}-full-windows.zip .)
+          cp target/release/kinetic-daemon.exe full_pkg/${NSP}-daemon.exe
+          cp target/release/kinetic-cli.exe full_pkg/${NSP}.exe
+          cp target/release/kinetic-nrs.exe full_pkg/${NSP}-nrs.exe
+          cp target/release/kinetic-pac.exe full_pkg/${NSP}-pac.exe
+          (cd full_pkg && zip -r ../artifacts/${NSP}-full-windows.zip .)
+          
+          cp target/release/kinetic-cli.exe node_host_pkg/${NSP}.exe
+          cp target/release/kinetic-node.exe node_host_pkg/${NSP}-node.exe
+          cp target/release/kinetic-host.exe node_host_pkg/${NSP}-host.exe
+          (cd node_host_pkg && zip -r ../artifacts/${NSP}-node-host-windows.zip .)
           
           cd artifacts && sha256sum * > checksums-windows.txt
       - uses: actions/upload-artifact@v4
