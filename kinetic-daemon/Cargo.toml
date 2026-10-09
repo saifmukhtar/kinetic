@@ -31,7 +31,6 @@ ed25519-dalek.workspace = true
 futures-util.workspace = true
 getrandom.workspace = true
 hex.workspace = true
-hickory-server.workspace = true
 http-body-util.workspace = true
 hyper = { workspace = true, features = ["full"] }
 hyper-util = { workspace = true, features = ["full"] }
@@ -41,7 +40,6 @@ kinetic-kid.workspace = true
 kinetic-kyn.workspace = true
 kinetic-local.workspace = true
 kinetic-network.workspace = true
-kinetic-nrs.workspace = true
 kinetic-primitives.workspace = true
 kinetic-rpc.workspace = true
 kinetic-storage.workspace = true

@@ -689,58 +689,6 @@ async fn run_daemon() -> Result<()> {
         );
     }
 
-    if config.daemon.enable_nrs {
-        let api_url = format!(
-            "http://{}:{}",
-            config.peer.bind_ip, config.daemon.api_port
-        );
-        let dns_handler = kinetic_nrs::KineticNrsHandler::new(
-            api_url,
-            atlas_nsps.clone(),
-            config.daemon.atlas_port,
-        );
-        let mut server = hickory_server::ServerFuture::new(dns_handler);
-
-        let udp_bind = tokio::net::UdpSocket::bind(format!(
-            "{}:{}",
-            config.peer.bind_ip, config.daemon.nrs_port
-        ))
-        .await;
-
-        let tcp_bind = tokio::net::TcpListener::bind(format!(
-            "{}:{}",
-            config.peer.bind_ip, config.daemon.nrs_port
-        ))
-        .await;
-
-        match (udp_bind, tcp_bind) {
-            (Ok(udp_socket), Ok(tcp_listener)) => {
-                server.register_socket(udp_socket);
-                server.register_listener(tcp_listener, std::time::Duration::from_secs(5));
-
-                tokio::spawn(async move {
-                    info!(
-                        "Built-in DNS Server starting on port {}",
-                        config.daemon.nrs_port
-                    );
-                    if let Err(e) = server.block_until_done().await {
-                        tracing::error!(
-                            error = ?kinetic_core::error::SystemError::ServerCrashed(e.to_string()),
-                            "DNS Server error"
-                        );
-                    }
-                });
-            }
-            (Err(e), _) | (_, Err(e)) => {
-                tracing::error!(
-                    error = ?kinetic_core::error::SystemError::PortInUse(format!("{}:{}", config.peer.bind_ip, config.daemon.nrs_port)),
-                    "Failed to bind built-in DNS server to port {} (likely EADDRINUSE from systemd-resolved). DNS server disabled, but daemon will continue running! Error: {}",
-                    config.daemon.nrs_port, e
-                );
-            }
-        }
-    }
-
     if let Err(e) = api_future.await {
         tracing::error!(
             error = ?kinetic_core::error::SystemError::ServerCrashed(format!("{:?}", e)),

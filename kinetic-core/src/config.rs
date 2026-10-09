@@ -133,9 +133,6 @@ pub struct DaemonConfig {
     /// Port for the local backend HTTP server (default: [`ports::BACKEND`]).
     #[serde(default = "default_backend_port")]
     pub backend_port: u16,
-    /// Whether to start the built-in UDP DNS resolver on boot (default: `true`).
-    #[serde(default = "default_true")]
-    pub enable_nrs: bool,
 
     /// Port for the PAC (Proxy Auto-Config) server (default: [`ports::PAC`]).
     #[serde(default = "default_pac_port")]
@@ -339,7 +336,6 @@ impl Default for KineticConfig {
                 nrs_port: ports::NRS,
                 proxy_port: ports::PROXY,
                 backend_port: ports::BACKEND,
-                enable_nrs: true,
                 pac_port: ports::PAC,
                 ipfs_gateway: crate::constants::IPFS_GATEWAY.to_string(),
                 atlas_port: 34291,
