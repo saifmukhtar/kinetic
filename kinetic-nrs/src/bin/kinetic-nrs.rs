@@ -20,7 +20,7 @@ use kinetic_nrs::KineticNrsHandler;
 
 #[derive(Parser)]
 #[command(
-    name = "kinetic-dns-server",
+    name = "kinetic-nrs",
     version = "0.1.0",
     author = "Kinetic Protocol"
 )]

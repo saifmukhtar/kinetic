@@ -42,20 +42,8 @@ pub async fn handle_setup_command(cmd: SetupCommand) -> anyhow::Result<()> {
     println!("========================================================");
     println!("Your Kinetic environment is ready to go.");
     println!("\nNext Steps:");
-    println!(
-        "  1. Start the Kinetic Daemon:   sudo systemctl start {}-daemon",
-        kinetic_core::constants::NSP
-    );
-    println!(
-        "  2. Check your node status:     {} daemon status",
-        kinetic_core::constants::NSP
-    );
-    println!(
-        "  3. Register your .{} name:  {} name register <name.{}>",
-        kinetic_core::constants::NSP_SUFFIX.trim_start_matches('.'),
-        kinetic_core::constants::NSP,
-        kinetic_core::constants::NSP_SUFFIX.trim_start_matches('.')
-    );
+    println!("  1. Install the Daemon:   {} system daemon install", kinetic_core::constants::NSP);
+    println!("  2. Start the Daemon:     {} system daemon start", kinetic_core::constants::NSP);
     println!("\nFor documentation, visit https://kinetic.saifmukhtar.dev");
     println!("========================================================\n");
 

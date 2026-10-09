@@ -23,8 +23,8 @@ pub enum ServicesCommand {
         #[command(subcommand)]
         cmd: executor::ServiceCommands,
     },
-    /// Manage the Kinetic DNS Server (system-wide .kin resolution — requires root/sudo)
-    Dns {
+    /// Manage the Kinetic NRS Server (system-wide .kin resolution — requires root/sudo)
+    Nrs {
         #[command(subcommand)]
         cmd: executor::ServiceCommands,
     },
@@ -63,8 +63,8 @@ pub async fn handle_services_command(
             let bin = format!("{}-node", kinetic_core::constants::NSP);
             executor::handle_service_command(&bin, cmd, false).await
         }
-        ServicesCommand::Dns { cmd } => {
-            let bin = format!("{}-dns", kinetic_core::constants::NSP);
+        ServicesCommand::Nrs { cmd } => {
+            let bin = format!("{}-nrs", kinetic_core::constants::NSP);
             executor::handle_service_command(&bin, cmd, true).await
         }
         ServicesCommand::Pac { cmd } => {

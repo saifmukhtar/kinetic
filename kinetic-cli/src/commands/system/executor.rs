@@ -142,7 +142,7 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
         .unwrap_or(false);
 
     if !binary_found {
-        let role_hint = if binary.ends_with("-daemon") || binary.ends_with("-host") || binary.ends_with("-node") {
+        let role_hint = if binary.ends_with("-daemon") {
             format!(
                 "manage {} names and run the local P2P proxy",
                 kinetic_core::constants::NSP_SUFFIX
@@ -157,7 +157,7 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
                 "run a full DHT node and contribute to the {} network",
                 kinetic_core::constants::NSP
             )
-        } else if binary.ends_with("-dns") {
+        } else if binary.ends_with("-nrs") {
             format!(
                 "enable system-wide {} DNS resolution (e.g. for curl)",
                 kinetic_core::constants::NSP_SUFFIX
@@ -191,10 +191,17 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
     }
 
     if actual_needs_sudo {
-        eprintln!();
-        eprintln!("  Note: The Kinetic DNS server binds to port 53, which requires");
-        eprintln!("        administrator / root access. You may be prompted for your password.");
-        eprintln!();
+        if binary.ends_with("-nrs") {
+            eprintln!();
+            eprintln!("  Note: The Kinetic NRS server binds to port 53, which requires");
+            eprintln!("        administrator / root access. You may be prompted for your password.");
+            eprintln!();
+        } else {
+            eprintln!();
+            eprintln!("  Note: Managing system services requires administrator / root access.");
+            eprintln!("        You may be prompted for your password.");
+            eprintln!();
+        }
     }
 
     // Build and exec the final command.

@@ -134,7 +134,7 @@ async fn run_host() -> Result<()> {
         .finish();
     tracing::subscriber::set_global_default(subscriber).unwrap_or(());
 
-    info!("Starting Kinetic Node (Infrastructure Mode)...");
+    info!("Starting Kinetic Host...");
 
     // 2. Initialize embedded storage
     let base_config_dir = kinetic_local::config::nsp_dir();
@@ -169,7 +169,7 @@ async fn run_host() -> Result<()> {
     let key_path = kinetic_local::config::nsp_dir().join("host.key");
     let host_key = host_key::load_or_generate_host_key(&key_path);
     let host_peer_id = libp2p::PeerId::from_public_key(&host_key.public());
-    info!("Infrastructure Node static Host Identity: {}", host_peer_id);
+    info!("Kinetic Host static Identity: {}", host_peer_id);
 
     // 4.5. Solve the Epoch-Bound Ephemeral peer challenge Key
     info!("Solving peer challenge S/Kademlia identity for current epoch...");
@@ -183,7 +183,7 @@ async fn run_host() -> Result<()> {
     .map_err(|e| anyhow::anyhow!("peer challenge solving task failed: {}", e))?;
     let local_peer_id = libp2p::PeerId::from_public_key(&local_key.public());
     info!(
-        "Infrastructure Node ephemeral peer challenge Identity: {}",
+        "Kinetic Host ephemeral peer challenge Identity: {}",
         local_peer_id
     );
 
@@ -441,7 +441,7 @@ async fn configure_port(arg_port: Option<u16>) -> Result<()> {
     config.host.backend_port = port;
     config.host.backend_host = "127.0.0.1".to_string();
     kinetic_local::config::save_config(&config)?;
-    println!("Configuration saved to network.json");
+    println!("Configuration saved to config.toml");
 
     Ok(())
 }

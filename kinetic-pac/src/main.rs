@@ -300,7 +300,7 @@ fn default_ip() -> String {
 
 #[derive(Parser)]
 #[command(
-    name = "kinetic-pac-server",
+    name = "kinetic-pac",
     version = "0.1.0",
     author = "Kinetic Protocol"
 )]
@@ -326,8 +326,9 @@ enum Commands {
 fn install_service() -> anyhow::Result<()> {
     println!("Installing Kinetic PAC Server service...");
     let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NSP).parse()?;
-    let manager = <dyn ServiceManager>::native()
+    let mut manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
+    let _ = manager.set_level(service_manager::ServiceLevel::User);
     let current_exe = env::current_exe()?;
     manager.install(ServiceInstallCtx {
         label: label.clone(),
@@ -350,8 +351,9 @@ fn install_service() -> anyhow::Result<()> {
 
 fn uninstall_service() -> anyhow::Result<()> {
     let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NSP).parse()?;
-    let manager = <dyn ServiceManager>::native()
+    let mut manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
+    let _ = manager.set_level(service_manager::ServiceLevel::User);
     manager.uninstall(ServiceUninstallCtx { label })?;
 
     // Also remove OS settings just in case it's currently installed
@@ -365,8 +367,9 @@ fn uninstall_service() -> anyhow::Result<()> {
 
 fn start_background_service() -> anyhow::Result<()> {
     let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NSP).parse()?;
-    let manager = <dyn ServiceManager>::native()
+    let mut manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
+    let _ = manager.set_level(service_manager::ServiceLevel::User);
     manager.start(ServiceStartCtx { label })?;
     println!("Service started.");
     Ok(())
@@ -374,8 +377,9 @@ fn start_background_service() -> anyhow::Result<()> {
 
 fn stop_background_service() -> anyhow::Result<()> {
     let label: ServiceLabel = format!("{}-pac", kinetic_core::constants::NSP).parse()?;
-    let manager = <dyn ServiceManager>::native()
+    let mut manager = <dyn ServiceManager>::native()
         .map_err(|e| anyhow::anyhow!("Failed to detect native service manager: {}", e))?;
+    let _ = manager.set_level(service_manager::ServiceLevel::User);
     manager.stop(ServiceStopCtx { label })?;
     println!("Service stopped.");
     Ok(())
