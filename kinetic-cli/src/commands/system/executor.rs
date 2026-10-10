@@ -110,7 +110,10 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
         ServiceCommands::Install => {
             let mut args = vec![];
             if binary.ends_with("-daemon") || binary.ends_with("-host") || binary.ends_with("-node") {
-                let current_user = std::env::var("USER").unwrap_or_else(|_| "root".to_string());
+                let current_user = std::env::var("SUDO_USER")
+                    .or_else(|_| std::env::var("USER"))
+                    .or_else(|_| std::env::var("USERNAME"))
+                    .unwrap_or_else(|_| "root".to_string());
                 let base_dir = kinetic_local::config::nsp_dir();
                 args.push("--user".to_string());
                 args.push(current_user);
