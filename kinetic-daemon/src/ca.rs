@@ -76,19 +76,12 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
         if cert_path.exists() {
             let cert_pem = std::fs::read_to_string(&cert_path)?;
 
-            #[cfg(not(test))]
-            let key_pem_opt =
-                keyring::Entry::new("kinetic_daemon", "root_ca_key").and_then(|e| e.get_password());
-            #[cfg(test)]
-            let key_pem_opt: Result<String, keyring::Error> = Err(keyring::Error::NoEntry);
-
-            let key_pem = match key_pem_opt {
+            let key_pem = match std::fs::read_to_string(&key_path) {
                 Ok(k) => k,
-                Err(_) if key_path.exists() => std::fs::read_to_string(&key_path)?, // Fallback to disk
                 Err(_) => {
                     return Err(CaError::Io(std::io::Error::new(
                         std::io::ErrorKind::NotFound,
-                        "CA Private Key missing from both OS Keychain and disk.",
+                        "CA Private Key missing from disk.",
                     )));
                 }
             };
@@ -141,54 +134,32 @@ pub fn load_or_create_root_ca(config_dir: &Path) -> Result<(RootCa, bool), CaErr
 
         std::fs::write(&cert_path, &cert_pem)?;
 
-        #[cfg(not(test))]
-        let keyring_success = {
-            let entry = keyring::Entry::new("kinetic_daemon", "root_ca_key");
-            match entry {
-                Ok(e) => e.set_password(&key_pem).is_ok(),
-                Err(_) => false,
-            }
-        };
-        #[cfg(test)]
-        let keyring_success = false;
-
-        if keyring_success {
-            tracing::info!("Root CA private key securely stored in OS Keychain.");
-            let _ = std::fs::remove_file(&key_path);
-        } else {
-            #[cfg(not(test))]
-            tracing::warn!(
-                error = ?kinetic_core::error::SystemError::KeychainStorageFailed("root_ca_key".into()),
-                "Failed to store Root CA key in OS Keychain. Falling back to disk storage."
-            );
-
-            #[cfg(unix)]
-            {
-                use std::io::Write;
-                use std::os::unix::fs::OpenOptionsExt;
-                let mut f = std::fs::OpenOptions::new()
-                    .write(true)
-                    .create(true)
-                    .truncate(true)
-                    .mode(0o600)
-                    .open(&key_path)?;
-                f.write_all(key_pem.as_bytes())?;
-            }
-            #[cfg(not(unix))]
-            {
-                std::fs::write(&key_path, &key_pem)?;
-            }
-            #[cfg(windows)]
-            {
-                let _ = std::process::Command::new("icacls")
-                    .args([
-                        key_path.to_str().unwrap_or_default(),
-                        "/inheritance:r",
-                        "/grant:r",
-                        &format!("{}:F", std::env::var("USERNAME").unwrap_or_default()),
-                    ])
-                    .status();
-            }
+        #[cfg(unix)]
+        {
+            use std::io::Write;
+            use std::os::unix::fs::OpenOptionsExt;
+            let mut f = std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .mode(0o600)
+                .open(&key_path)?;
+            f.write_all(key_pem.as_bytes())?;
+        }
+        #[cfg(not(unix))]
+        {
+            std::fs::write(&key_path, &key_pem)?;
+        }
+        #[cfg(windows)]
+        {
+            let _ = std::process::Command::new("icacls")
+                .args([
+                    key_path.to_str().unwrap_or_default(),
+                    "/inheritance:r",
+                    "/grant:r",
+                    &format!("{}:F", std::env::var("USERNAME").unwrap_or_default()),
+                ])
+                .status();
         }
 
         // Attempt to trust the newly generated CA locally.

@@ -34,7 +34,6 @@ hex.workspace = true
 http-body-util.workspace = true
 hyper = { workspace = true, features = ["full"] }
 hyper-util = { workspace = true, features = ["full"] }
-keyring.workspace = true
 kinetic-core.workspace = true
 kinetic-kid.workspace = true
 kinetic-kyn.workspace = true
