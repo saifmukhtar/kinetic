@@ -137,12 +137,24 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
         _ => unreachable!(),
     };
 
-    // Verify the binary is on PATH before doing anything else.
-    let binary_found = std::process::Command::new("which")
-        .arg(binary)
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
+    // Resolve the absolute path of the target binary.
+    // Since `kin` and its binaries are installed side-by-side, we look in the same directory as the current executable.
+    let current_exe = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("kin"));
+    let exe_dir = current_exe.parent().unwrap_or(std::path::Path::new(""));
+    let mut binary_path = exe_dir.join(binary);
+
+    // If it's not found alongside the CLI, fallback to searching the PATH
+    let mut binary_found = binary_path.exists();
+    if !binary_found {
+        binary_found = std::process::Command::new("which")
+            .arg(binary)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        if binary_found {
+            binary_path = std::path::PathBuf::from(binary);
+        }
+    }
 
     if !binary_found {
         let role_hint = if binary.ends_with("-daemon") {
@@ -210,12 +222,12 @@ fn delegate_service(binary: &str, cmd: &ServiceCommands, needs_sudo: bool) -> an
     // Build and exec the final command.
     let status = if actual_needs_sudo && cfg!(unix) {
         std::process::Command::new("sudo")
-            .arg(binary)
+            .arg(&binary_path)
             .arg(subcommand)
             .args(&extra_args)
             .status()
     } else {
-        std::process::Command::new(binary)
+        std::process::Command::new(&binary_path)
             .arg(subcommand)
             .args(&extra_args)
             .status()
